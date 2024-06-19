@@ -442,6 +442,7 @@ $RECYCLE.BIN/
 
 # JetBrains Rider
 .idea/
+.idea
 *.sln.iml
 
 ##
@@ -454,3 +455,8 @@ $RECYCLE.BIN/
 !.vscode/extensions.json
 .ipynb_checkpoints
 /cache
+
+## own
+ModelEINP/.cache
+ModelEINP/bin
+ModelEINP/obj

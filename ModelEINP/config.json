@@ -1,0 +1,165 @@
+{
+  "globals": {
+    "deltaT": 1,
+    "startPoint": "2018-11-18T00:00:00",
+    "endPoint": "2018-11-20T16:00:00",
+    "deltaTUnit": "hours",
+    "console": true,
+    "output": "csv",
+    "options": {
+      "delimiter": ";",
+      "format": "en-EN"
+    }
+  },
+  "layers": [
+    {
+      "name": "Perimeter",
+      "file": "Resources/einp_perimeter.geojson"
+    },
+    {
+      "name":"VectorWaterLayer",
+      "file":"Resources/einp_water_spots.geojson"
+    },
+    {
+      "name":"RasterWaterLayer",
+      "file":"Resources/einp_water_spots.asc"
+    },
+    {
+      "name": "VegetationLayer",
+      "file": "Resources/ndvi_apr_23.asc"
+    },
+    {
+      "name": "TemperatureLayer",
+      "file": "Resources/open-meteo-53.60N112.93W736m.csv"
+    },
+    {
+      "name": "AltitudeLayer",
+      "file": "Resources/heights.asc"
+    }
+  ],
+  "agents": [
+    {
+      "name": "Bison",
+      "mapping": [
+        {
+          "parameter": "DailyFoodAdult",
+          "value": 60
+        },
+        {
+          "parameter": "DailyFoodAdolescent",
+          "value": 29
+        },
+        {
+          "parameter": "DailyFoodCalf",
+          "value": 9
+        },
+        {
+          "parameter": "DailyWaterAdult",
+          "value": 113
+        },
+        {
+          "parameter": "DailyWaterAdolescent",
+          "value": 55
+        },
+        {
+          "parameter": "DailyWaterCalf",
+          "value": 17
+        },
+        {
+          "parameter": "RandomWalkMaxDistanceInM",
+          "value":  500
+        },
+        {
+          "parameter": "RandomWalkMinDistanceInM",
+          "value":  10
+        }
+      ],
+      "file":"Resources/bisons.csv",
+      "outputs": [
+        {"kind": "trips"}
+      ]
+    },
+    {
+      "name": "Moose",
+      "mapping": [
+        {
+          "parameter": "DailyFoodAdult",
+          "value": 27
+        },
+        {
+          "parameter": "DailyFoodAdolescent",
+          "value": 13
+        },
+        {
+          "parameter": "DailyFoodCalf",
+          "value": 4
+        },
+        {
+          "parameter": "DailyWaterAdult",
+          "value": 529
+        },
+        {
+          "parameter": "DailyWaterAdolescent",
+          "value": 258
+        },
+        {
+          "parameter": "DailyWaterCalf",
+          "value": 79
+        },
+        {
+          "parameter": "RandomWalkMaxDistanceInM",
+          "value":  500
+        },
+        {
+          "parameter": "RandomWalkMinDistanceInM",
+          "value":  10
+        }
+      ],
+      "file":"Resources/moose.csv",
+      "outputs": [
+        {"kind": "trips"}
+      ]
+    },
+    {
+      "name": "Elk",
+      "mapping": [
+        {
+          "parameter": "DailyFoodAdult",
+          "value": 9.1
+        },
+        {
+          "parameter": "DailyFoodAdolescent",
+          "value": 4.2
+        },
+        {
+          "parameter": "DailyFoodCalf",
+          "value": 2.0
+        },
+        {
+          "parameter": "DailyWaterAdult",
+          "value": 60
+        },
+        {
+          "parameter": "DailyWaterAdolescent",
+          "value": 29
+        },
+        {
+          "parameter": "DailyWaterCalf",
+          "value": 9
+        },
+        {
+          "parameter": "RandomWalkMaxDistanceInM",
+          "value":  500
+        },
+        {
+          "parameter": "RandomWalkMinDistanceInM",
+          "value":  10
+        }
+      ],
+      "file":"Resources/elks.csv",
+      "outputs": [
+        {"kind": "trips"}
+      ]
+    }
+  ]
+}
