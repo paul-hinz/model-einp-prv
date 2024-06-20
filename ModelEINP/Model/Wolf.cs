@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Mars.Interfaces.Annotations;
 using Mars.Interfaces.Environments;
 
@@ -12,8 +11,10 @@ public class Wolf : AbstractAnimal
     public Wolf() {
     }
     
-    [ActiveConstructor]
+    private bool Logger = false;
+
     
+    [ActiveConstructor] 
     public Wolf(
         LandscapeLayer landscapeLayer, 
         Perimeter perimeter,
@@ -52,10 +53,10 @@ public class Wolf : AbstractAnimal
     [PropertyDescription(Name = "Longitude")]
     public override double Longitude { get; set; }
     //Chance for a female animal to become pregnant per year
+    //ToDo: adjust rate (only alpha female gets pregnant)
     public int ChanceForPregnancy = 0;
 
-
-    protected string MooseType;
+    
     #endregion
 
     #region Constants
@@ -72,21 +73,7 @@ public class Wolf : AbstractAnimal
         { AnimalLifePeriod.Adult, MaxSatiety * DailyFoodAdult / 16 / DailyFoodAdult }  
     };
     
-    private readonly Dictionary<AnimalLifePeriod, double> _dehydrationRate =
-        new()
-        {
-            /*
-             * DailyWater / 24 is the gross starvation rate
-             * but MaxHydration = 100 != total food need per day
-             * so the rate has to be adjusted
-             * Total water need per day : 100 = (Total water need per day / 24) : adjusted rate
-             */
-            { AnimalLifePeriod.Calf, MaxHydration * DailyWaterCalf / 24 / DailyWaterAdult },
-            { AnimalLifePeriod.Adolescent, MaxHydration * DailyWaterAdolescent / 24 / DailyWaterAdult}, 
-            { AnimalLifePeriod.Adult, MaxHydration * DailyWaterAdult / 24 / DailyWaterAdult}
-        };
-
-    //total need of food per day in kilogramms
+    //total need of food per day in kilograms
     [PropertyDescription]
     public static double DailyFoodAdult { get; set; }
     [PropertyDescription]
@@ -103,8 +90,12 @@ public class Wolf : AbstractAnimal
     public static double DailyWaterAdolescent { get; set; }
     #endregion
 
+    //Lots of TODO
     public override void Tick()
     {
+        
+        if(Logger) Console.WriteLine("Tick! in Wolf: " + ID);
+        
     }
 
     protected override void UpdateState()
@@ -113,6 +104,7 @@ public class Wolf : AbstractAnimal
 
     public override void YearlyRoutine()
     {
+        if(Logger) Console.WriteLine("YEARLY in Wolf: " + ID);
     }
 
     public override AnimalLifePeriod GetAnimalLifePeriodFromAge(int age)

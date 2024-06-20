@@ -25,6 +25,7 @@ internal static class Program {
         description.AddAgent<Bison, LandscapeLayer>();
         description.AddAgent<Moose, LandscapeLayer>();
         description.AddAgent<Elk, LandscapeLayer>();
+        description.AddAgent<Wolf, LandscapeLayer>();
 
         // Scenario definition: Use config.json that holds the specification of the scenario
         var file = File.ReadAllText("config.json");

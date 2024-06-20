@@ -22,6 +22,7 @@ public class LandscapeLayer : AbstractLayer {
     private List<Bison> Bisons { get; set; }
     private List<Moose> Moose { get; set; }
     private List<Elk> Elks { get; set; }
+    private List<Wolf> Wolfs { get; set; }
     [PropertyDescription(Name = "Perimeter")]
     public Perimeter Fence { get; set; }
 
@@ -56,6 +57,7 @@ public class LandscapeLayer : AbstractLayer {
         Bisons = agentManager.Spawn<Bison, LandscapeLayer>().ToList();
         Moose = agentManager.Spawn<Moose, LandscapeLayer>().ToList();
         Elks = agentManager.Spawn<Elk, LandscapeLayer>().ToList();
+        Wolfs = agentManager.Spawn<Wolf, LandscapeLayer>().ToList();
         
         return Bisons.Count + Moose.Count + Elks.Count > 0;
     }
@@ -86,20 +88,33 @@ public class LandscapeLayer : AbstractLayer {
         Moose.Add(newMoose);
         _registerAgent(landscapeLayer, newMoose);
     }
+    
+    public void SpawnWolf(LandscapeLayer landscapeLayer, Perimeter perimeter, 
+        VegetationLayer vegetationLayer, VectorWaterLayer waterLayer, RasterWaterLayer rasterWaterLayer, AnimalType animalType, 
+        bool isLeading, int herdId, double latitude, double longitude, Position position) {
+        var newWolf = new Wolf(landscapeLayer, perimeter, vegetationLayer, waterLayer, rasterWaterLayer,
+            Guid.NewGuid(), animalType, isLeading, herdId, latitude, longitude, position);
+        Wolfs.Add(newWolf);
+        _registerAgent(landscapeLayer, newWolf);
+    }
 
-    public void removeAnimal(LandscapeLayer landscapeLayer, AbstractAnimal animal) {
+    public void RemoveAnimal(LandscapeLayer landscapeLayer, AbstractAnimal animal) {
         _unregisterAgent(landscapeLayer, animal);
-        if (animal._animalType == AnimalType.BisonBull || animal._animalType == AnimalType.BisonCalf ||
-            animal._animalType == AnimalType.BisonCow || animal._animalType == AnimalType.BisonCow) {
+        if (animal._animalType is AnimalType.BisonBull or AnimalType.BisonCalf 
+            or AnimalType.BisonCow or AnimalType.BisonCow) {
             Bisons.Remove((Bison)animal);
         } 
-        else if (animal._animalType == AnimalType.ElkCalf || animal._animalType == AnimalType.ElkCow ||
-              animal._animalType == AnimalType.ElkBull || animal._animalType == AnimalType.ElkNewborn) {
+        else if (animal._animalType is AnimalType.ElkCalf or AnimalType.ElkCow 
+                 or AnimalType.ElkBull or AnimalType.ElkNewborn) {
             Elks.Remove((Elk)animal);
         }
-        else if (animal._animalType == AnimalType.MooseCalf || animal._animalType == AnimalType.MooseCow ||
-                 animal._animalType == AnimalType.MooseBull || animal._animalType == AnimalType.MooseNewborn) {
+        else if (animal._animalType is AnimalType.MooseCalf or AnimalType.MooseCow 
+                 or AnimalType.MooseBull or AnimalType.MooseNewborn) {
             Moose.Remove((Moose)animal);
+        }
+        else if (animal._animalType is AnimalType.WolfFemale or AnimalType.WolfMale 
+                 or AnimalType.WolfPup or AnimalType.WolfNewborn) {
+            Wolfs.Remove((Wolf)animal);
         }
     }
 }

@@ -100,7 +100,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         if (_perimeter.IsPointInside(spawnPosition) && !_rasterWaterLayer.IsPointInside(spawnPosition)) {
             Position = Position.CreateGeoPosition(Longitude, Latitude);
         } else {
-            throw new Exception($"Start point is not valid. Lon: {Longitude}, Lat: {Latitude}");
+            throw new Exception($"Start point is not valid. Lon: {Longitude}, Lat: {Latitude}, herdID: {_herdId}");
         }
     }
     
@@ -216,7 +216,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     {
         MatterOfDeath = mannerOfDeath;
         IsAlive = false;
-        _landscapeLayer.removeAnimal(_landscapeLayer, this);
+        _landscapeLayer.RemoveAnimal(_landscapeLayer, this);
     }
     
 }

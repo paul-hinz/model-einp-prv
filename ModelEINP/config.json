@@ -160,6 +160,47 @@
       "outputs": [
         {"kind": "trips"}
       ]
+    },
+    {
+      "name": "Wolf",
+      "mapping": [
+        {
+          "parameter": "DailyFoodAdult",
+          "value": 9.1
+        },
+        {
+          "parameter": "DailyFoodAdolescent",
+          "value": 4.2
+        },
+        {
+          "parameter": "DailyFoodCalf",
+          "value": 2.0
+        },
+        {
+          "parameter": "DailyWaterAdult",
+          "value": 0
+        },
+        {
+          "parameter": "DailyWaterAdolescent",
+          "value": 0
+        },
+        {
+          "parameter": "DailyWaterCalf",
+          "value": 0
+        },
+        {
+          "parameter": "RandomWalkMaxDistanceInM",
+          "value":  500
+        },
+        {
+          "parameter": "RandomWalkMinDistanceInM",
+          "value":  10
+        }
+      ],
+      "file":"Resources/wolfs.csv",
+      "outputs": [
+        
+      ]
     }
   ]
 }

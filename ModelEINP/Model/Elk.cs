@@ -133,7 +133,7 @@ public class Elk : AbstractAnimal {
         UpdateState();
     }
 
-    //TODO change to simulate elk water and food consumption
+    //to do: change to simulate elk water and food consumption
     protected override void UpdateState()
     {
         int currentHour;

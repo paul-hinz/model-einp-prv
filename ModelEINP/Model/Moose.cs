@@ -132,7 +132,7 @@ public class Moose : AbstractAnimal {
         UpdateState();
     }
     
-    //TODO change to simulate moose water and food consumption
+    //to do: change to simulate moose water and food consumption
     protected override void UpdateState()
     {
         int currentHour;
