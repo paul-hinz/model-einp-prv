@@ -3,22 +3,33 @@ using System.Collections.Generic;
 
 namespace ModelEINP.Model;
 
-//TODO: Use this and implement a PackManager with nextID, findById and Factory
-public class WolfPack(int packId, Wolf father, Wolf mother, List<Wolf> other)
+public class WolfPack
 {
-    private List<Wolf> _members = other;
-    
-    private int Id { get; } = packId;
-    public Wolf Father { get; } = father;
-    public Wolf Mother { get; } = mother;
+    private List<Wolf> _members;
+    private int Id { get; }
+    public Wolf Father { get; set;}
+    public Wolf Mother { get; set; }
 
-    public void InsertNewborns(List<Wolf> newBorns)
+    internal WolfPack(int packId, Wolf father, Wolf mother, List<Wolf> other)
     {
-        foreach (Wolf wolf in newBorns)
+        Id = packId;
+        Father = father;
+        Mother = mother;
+        _members = other ?? new List<Wolf>();
+    }
+
+    public void InsertNewborns(List<Wolf> newborns)
+    {
+        foreach (Wolf wolf in newborns)
         {
             _members.Add(wolf);
         }
         
+    }
+
+    public int GetId()
+    {
+        return Id;
     }
     
 }

@@ -12,6 +12,7 @@ public class Wolf : AbstractAnimal
     }
     
     private bool Logger = false;
+    private static PackManager _packManager;
 
     
     [ActiveConstructor] 
@@ -39,7 +40,28 @@ public class Wolf : AbstractAnimal
             herdId,
             latitude, 
             longitude,
-            position) { 
+            position)
+    {
+        _packManager ??= new PackManager();
+        var pack = _packManager.FindById(_herdId);
+        if (pack is null)
+        {
+            var members = new List<Wolf>();
+            members.Add(this);
+            pack = _packManager.CreateWolfPack(herdId, null, null, members);
+        }
+
+        if (_isLeading)
+        {
+            if(_animalType is AnimalType.WolfMale)
+            {
+                pack.Father = this;
+            }
+            if(_animalType is AnimalType.WolfFemale)
+            {
+                pack.Mother = this;
+            }
+        }
     }
     
     #region Properties and Fields
