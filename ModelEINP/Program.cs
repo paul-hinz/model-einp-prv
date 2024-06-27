@@ -4,7 +4,8 @@ using Mars.Components.Starter;
 using Mars.Interfaces.Model;
 using ModelEINP.Model;
 
-namespace ModelEINP;
+namespace ModelEINP; 
+
 
 internal static class Program {
     public static void Main(string[] args) {

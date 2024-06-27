@@ -17,7 +17,7 @@ public class LandscapeLayer : AbstractLayer {
     
     #region Properties and Fields
     
-    public static GeoHashEnvironment<AbstractAnimal> Environment { get; set; }
+    public GeoHashEnvironment<AbstractAnimal> Environment { get; set; }
 
     private List<Bison> Bisons { get; set; }
     private List<Moose> Moose { get; set; }
@@ -59,7 +59,7 @@ public class LandscapeLayer : AbstractLayer {
         Elks = agentManager.Spawn<Elk, LandscapeLayer>().ToList();
         Wolfs = agentManager.Spawn<Wolf, LandscapeLayer>().ToList();
         
-        return Bisons.Count + Moose.Count + Elks.Count > 0;
+        return Bisons.Count + Moose.Count + Elks.Count + Wolfs.Count > 0;
     }
 
     public void SpawnBison(LandscapeLayer landscapeLayer, Perimeter perimeter, 
@@ -68,6 +68,7 @@ public class LandscapeLayer : AbstractLayer {
         var newBison = new Bison(landscapeLayer, perimeter, vegetationLayer, waterLayer, rasterWaterLayer,
             Guid.NewGuid(), animalType, isLeading, herdId, latitude, longitude, position);
         Bisons.Add(newBison);
+        Environment.Insert(newBison);
         _registerAgent(landscapeLayer, newBison);
     }
     
@@ -77,6 +78,7 @@ public class LandscapeLayer : AbstractLayer {
         var newElk = new Elk(landscapeLayer, perimeter, vegetationLayer, waterLayer, rasterWaterLayer,
             Guid.NewGuid(), animalType, isLeading, herdId, latitude, longitude, position);
         Elks.Add(newElk);
+        Environment.Insert(newElk);
         _registerAgent(landscapeLayer, newElk);
     }
     
@@ -86,16 +88,19 @@ public class LandscapeLayer : AbstractLayer {
         var newMoose = new Moose(landscapeLayer, perimeter, vegetationLayer, waterLayer, rasterWaterLayer,
             Guid.NewGuid(), animalType, isLeading, herdId, latitude, longitude, position);
         Moose.Add(newMoose);
+        Environment.Insert(newMoose);
         _registerAgent(landscapeLayer, newMoose);
     }
     
-    public void SpawnWolf(LandscapeLayer landscapeLayer, Perimeter perimeter, 
+    public Wolf SpawnWolf(LandscapeLayer landscapeLayer, Perimeter perimeter, 
         VegetationLayer vegetationLayer, VectorWaterLayer waterLayer, RasterWaterLayer rasterWaterLayer, AnimalType animalType, 
         bool isLeading, int herdId, double latitude, double longitude, Position position) {
         var newWolf = new Wolf(landscapeLayer, perimeter, vegetationLayer, waterLayer, rasterWaterLayer,
             Guid.NewGuid(), animalType, isLeading, herdId, latitude, longitude, position);
         Wolfs.Add(newWolf);
+        Environment.Insert(newWolf);
         _registerAgent(landscapeLayer, newWolf);
+        return newWolf;
     }
 
     public void RemoveAnimal(LandscapeLayer landscapeLayer, AbstractAnimal animal) {
@@ -116,5 +121,6 @@ public class LandscapeLayer : AbstractLayer {
                  or AnimalType.WolfPup or AnimalType.WolfNewborn) {
             Wolfs.Remove((Wolf)animal);
         }
+        Environment.Remove(animal);
     }
 }

@@ -50,6 +50,10 @@ public class Bison : AbstractAnimal {
     public override double Latitude { get; set; }
     [PropertyDescription(Name = "Longitude")]
     public override double Longitude { get; set; }
+    [PropertyDescription (Name="isLeading")]
+    protected override bool IsLeading { get; set; }
+    [PropertyDescription (Name="herdId")]
+    protected override int HerdId { get; set; }
     //Chance for a female animal to become pregnant per year
     public int ChanceForPregnancy = 10;
 
@@ -113,7 +117,7 @@ public class Bison : AbstractAnimal {
             else {
                 _pregnancyDuration = 0;
                 _landscapeLayer.SpawnBison(_landscapeLayer, _perimeter, _vegetationLayer, _vectorWaterLayer, _rasterWaterLayer,
-                    AnimalType.BisonCalf, false, _herdId, Latitude, Longitude, Position);
+                    AnimalType.BisonCalf, false, HerdId, Latitude, Longitude, Position);
             }
         }
         if (_hoursLived == 2)

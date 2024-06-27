@@ -38,8 +38,8 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         _rasterWaterLayer = rasterWaterLayer;
         _animalType = animalType;
         ID = id;
-        _isLeading = isLeading;
-        _herdId = herdId;
+        //IsLeading = isLeading;
+        //HerdId = herdId;
     }
     
     public Guid ID { get; set; }
@@ -67,11 +67,9 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     public AnimalLifePeriod _LifePeriod;
     public MattersOfDeath MatterOfDeath { get; private set; }
     public bool IsAlive { get; set; } = true;
-
-    [PropertyDescription (Name="isLeading")]
-    protected bool _isLeading { get; }
-    [PropertyDescription (Name="_herdId")]
-    protected int _herdId { get; }
+    
+    protected abstract bool IsLeading { get; set; }
+    protected abstract int HerdId { get; set; }
     
     public static Random _random = new ();
     
@@ -100,7 +98,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         if (_perimeter.IsPointInside(spawnPosition) && !_rasterWaterLayer.IsPointInside(spawnPosition)) {
             Position = Position.CreateGeoPosition(Longitude, Latitude);
         } else {
-            throw new Exception($"Start point is not valid. Lon: {Longitude}, Lat: {Latitude}, herdID: {_herdId}");
+            throw new Exception($"Start point is not valid. Lon: {Longitude}, Lat: {Latitude}, herdID: {HerdId}");
         }
     }
     
@@ -184,7 +182,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
     }
     
-    //every animals has different ways to consume food or hydration
+    //every animal has different ways to consume food or hydration
     protected abstract void UpdateState();
 
     protected void BurnSatiety(double rate)
@@ -212,9 +210,10 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     public abstract AnimalLifePeriod GetAnimalLifePeriodFromAge(int age);
     
-    public void Die(MattersOfDeath mannerOfDeath)
+    
+    public void Die(MattersOfDeath matterOfDeath)
     {
-        MatterOfDeath = mannerOfDeath;
+        MatterOfDeath = matterOfDeath;
         IsAlive = false;
         _landscapeLayer.RemoveAnimal(_landscapeLayer, this);
     }

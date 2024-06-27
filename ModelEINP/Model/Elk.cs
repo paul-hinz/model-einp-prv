@@ -50,7 +50,11 @@ public class Elk : AbstractAnimal {
     public override double Latitude { get; set; }
     [PropertyDescription(Name = "Longitude")]
     public override double Longitude { get; set; }
-    //Chance for a female animal to become pregnant per year
+    [PropertyDescription (Name="IsLeading")]
+    protected override bool IsLeading { get; set; }
+    [PropertyDescription (Name="HerdId")]
+    protected override int HerdId { get; set; }
+    //Chance for a female animal to become pregnant per year 
     public int ChanceForPregnancy = 10;
     
     
@@ -112,7 +116,7 @@ public class Elk : AbstractAnimal {
             else {
                 _pregnancyDuration = 0;
                 _landscapeLayer.SpawnElk(_landscapeLayer, _perimeter, _vegetationLayer, _vectorWaterLayer, _rasterWaterLayer,
-                    AnimalType.ElkCalf, false, _herdId, Latitude, Longitude, Position);
+                    AnimalType.ElkCalf, false, HerdId, Latitude, Longitude, Position);
             }
         }
         if (_hoursLived == 2)
