@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using Mars.Common;
 using Mars.Interfaces.Agents;
@@ -6,17 +7,19 @@ using Mars.Interfaces.Environments;
 using NetTopologySuite.Utilities;
 using Position = Mars.Interfaces.Environments.Position;
 using Mars.Interfaces.Annotations;
+using ServiceStack;
+// ReSharper disable All
 
 namespace ModelEINP.Model;
 
 public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     [ActiveConstructor]
-    public AbstractAnimal() {
+    protected AbstractAnimal() {
     }
     
-    [ActiveConstructor]
-    public AbstractAnimal(
+    
+    protected AbstractAnimal(
         LandscapeLayer landscapeLayer, 
         Perimeter perimeter,
         VegetationLayer vegetationLayer,
@@ -31,71 +34,78 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         Position position) { 
         //Position = Position.CreateGeoPosition(longitude, latitude);
         Position = position;
-        _landscapeLayer = landscapeLayer;
-        _perimeter = perimeter;
-        _vegetationLayer = vegetationLayer;
-        _vectorWaterLayer = waterLayer;
-        _rasterWaterLayer = rasterWaterLayer;
-        _animalType = animalType;
+        LandscapeLayer = landscapeLayer;
+        Perimeter = perimeter;
+        VegetationLayer = vegetationLayer;
+        VectorWaterLayer = waterLayer;
+        RasterWaterLayer = rasterWaterLayer;
+        AnimalType = animalType;
         ID = id;
-        //IsLeading = isLeading;
-        //HerdId = herdId;
+        IsLeading = isLeading;
+        HerdId = herdId;
     }
-    
+
+    #region Properties and Fields
+
+    protected double RunDistancePerTick = 0;
+    protected bool IsFirstTick = true;
+    protected DateTime LastDate;
     public Guid ID { get; set; }
     public abstract Position Position { get; set; }
     public abstract Position Target { get; set; }
     public double Bearing = 222.0;
     public const double Distance = 5000.0;
-    public LandscapeLayer _landscapeLayer { get; set; }
+    public LandscapeLayer LandscapeLayer { get; set; }
     public abstract double Latitude { get; set; }
     public abstract double Longitude { get; set; }
-    public Perimeter _perimeter { get; set; }
-    public abstract double Hydration { get; set; }
-    public abstract double Satiety { get; set; }
-    public VectorWaterLayer _vectorWaterLayer { get; set; }
-    public RasterWaterLayer _rasterWaterLayer { get; set; }
-    public VegetationLayer _vegetationLayer { get; set; }
-    
-    public int _hoursLived;
-    public AnimalType _animalType;
-    public readonly int[] _reproductionYears = {2, 15};
-    public bool _pregnant;
-    public int _pregnancyDuration;
-    public int _chanceOfDeath;
-    public int Age { get; set; }
-    public AnimalLifePeriod _LifePeriod;
+    public Perimeter Perimeter { get; set; }
+    protected abstract double Hydration { get; set; }
+    protected abstract double Satiety { get; set; }
+    public VectorWaterLayer VectorWaterLayer { get; set; }
+    public RasterWaterLayer RasterWaterLayer { get; set; }
+    public VegetationLayer VegetationLayer { get; set; }
+
+    protected double TickLengthInSec = File.ReadAllText("tick.tmp").ToDouble();
+    protected int DaysLived;
+    public AnimalType AnimalType;
+    protected readonly int[] ReproductionYears = {2, 15};
+    protected bool Pregnant;
+    protected int PregnancyDuration;
+    protected int ChanceOfDeath;
+    protected int Age { get; set; }
+    protected AnimalLifePeriod LifePeriod;
     public MattersOfDeath MatterOfDeath { get; private set; }
-    public bool IsAlive { get; set; } = true;
+    protected bool IsAlive { get; set; } = true;
     
-    protected abstract bool IsLeading { get; set; }
-    protected abstract int HerdId { get; set; }
+    public abstract bool IsLeading { get; set; }
+    public abstract int HerdId { get; set; }
     
-    public static Random _random = new ();
+    protected static readonly Random Random = new ();
     
-    /// <summary>
-    /// Should be dependent from tick length
-    /// </summary>
+    #endregion
+
+    #region Constants
+
+    
     [PropertyDescription]
     public int RandomWalkMaxDistanceInM { get; set;  }
-    /// <summary>
-    /// Should be dependent from tick length
-    /// </summary>
+    
     [PropertyDescription]
     public int RandomWalkMinDistanceInM { get; set;  }
     
-    public const double MaxHydration = 100.0;
-    public const double MaxSatiety = 100.0; 
+    protected const double MaxHydration = 100.0;
+    protected const double MaxSatiety = 100.0; 
     public const int MaxAge = 25;
 
+    #endregion
     
     public void Init(LandscapeLayer layer) {
-        _landscapeLayer = layer;
+        LandscapeLayer = layer;
 
         var spawnPosition = new Position(Longitude, Latitude);
-        _landscapeLayer = layer;
+        LandscapeLayer = layer;
         
-        if (_perimeter.IsPointInside(spawnPosition) && !_rasterWaterLayer.IsPointInside(spawnPosition)) {
+        if (Perimeter.IsPointInside(spawnPosition) && !RasterWaterLayer.IsPointInside(spawnPosition)) {
             Position = Position.CreateGeoPosition(Longitude, Latitude);
         } else {
             throw new Exception($"Start point is not valid. Lon: {Longitude}, Lat: {Latitude}, herdID: {HerdId}");
@@ -103,60 +113,64 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     }
     
     public abstract void Tick();
+
+    public abstract void FirstTick();
+
+    public abstract void CalculateParams();
     
     protected void DoRandomWalk(int numOfAttempts) {
-        Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
+        Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
         
         while (numOfAttempts > 0) {
-            var randomDistance = _random.Next(RandomWalkMinDistanceInM, RandomWalkMaxDistanceInM);
-            var randomDirection = _random.Next(0, 360);
+            var randomDistance = Random.Next(RandomWalkMinDistanceInM, RandomWalkMaxDistanceInM);
+            var randomDirection = Random.Next(0, 360);
             
             Target = Position.GetRelativePosition(randomDirection, randomDistance);
             
-            if (_perimeter.IsPointInside(Target) && !_rasterWaterLayer.IsPointInside(Target)) {
+            if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
                 Position = Target;
                 break;
             }
             numOfAttempts--;
         }
         
-        Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
+        Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
     }
     
     protected void LookForWaterAndDrink() {
-        Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
+        Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
         const int radius = 2000;
-        var nearWaterSpots = _vectorWaterLayer.Explore(Position.PositionArray, radius)
+        var nearWaterSpots = VectorWaterLayer.Explore(Position.PositionArray, radius)
             .ToList();
 
-        if (!nearWaterSpots.Any()) return;
+        if (nearWaterSpots.Count == 0) return;
         
-        var nearestWaterSpot = _vectorWaterLayer
+        var nearestWaterSpot = VectorWaterLayer
             .Nearest(new []{Position.X, Position.Y})
             .VectorStructured
             .Geometry
             .Coordinates
-            .Where(coordinate => _perimeter.IsPointInside(new Position(coordinate.X, coordinate.Y)))
+            .Where(coordinate => Perimeter.IsPointInside(new Position(coordinate.X, coordinate.Y)))
             .OrderBy(coordinate => Position.DistanceInMTo(coordinate.X, coordinate.Y))
             .ToList();
 
         foreach (var point in nearestWaterSpot) {
             Target =  new Position(point.X, point.Y);
             
-            if (_perimeter.IsPointInside(Target) && !_rasterWaterLayer.IsPointInside(Target)) {
+            if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
                 Position = Target;
                 Hydration += 20;
                 break;
             }
         }
         
-        Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
+        Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
     }
 
     protected void LookForFoodAndEat() {
-        Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
-        if (_vegetationLayer.IsPointInside(Position)) {
-            var nearVegetationSpots = _vegetationLayer.Explore(Position, 20)
+        Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
+        if (VegetationLayer.IsPointInside(Position)) {
+            var nearVegetationSpots = VegetationLayer.Explore(Position, 20)
                 .OrderByDescending(node => node.Node.Value)
                 .ToList();
 
@@ -165,21 +179,21 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
                 var targetX = spot.Node.NodePosition.X;
                 var targetY = spot.Node.NodePosition.Y;
 
-                var targetLon = _vegetationLayer.LowerLeft.X +
-                                targetX * _vegetationLayer.CellWidth;
-                var targetLat = _vegetationLayer.LowerLeft.Y +
-                                targetY * _vegetationLayer.CellHeight;
+                var targetLon = VegetationLayer.LowerLeft.X +
+                                targetX * VegetationLayer.CellWidth;
+                var targetLat = VegetationLayer.LowerLeft.Y +
+                                targetY * VegetationLayer.CellHeight;
 
                 Target = new Position(targetLon, targetLat);
 
-                if (_perimeter.IsPointInside(Target) && !_rasterWaterLayer.IsPointInside(Target)) {
+                if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
                     Position = Target;
                     Satiety += 12;
                     break;
                 }
             }
         }
-        Assert.IsTrue(_perimeter.IsPointInside(Position) && !_rasterWaterLayer.IsPointInside(Position));
+        Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
     }
     
     //every animal has different ways to consume food or hydration
@@ -215,7 +229,19 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     {
         MatterOfDeath = matterOfDeath;
         IsAlive = false;
-        _landscapeLayer.RemoveAnimal(_landscapeLayer, this);
+        LandscapeLayer.RemoveAnimal(LandscapeLayer, this);
+    }
+
+    protected void UpdateDaysLived()
+    {
+        DateTime currentDate;
+        if (LandscapeLayer.Context.CurrentTimePoint != null)
+            currentDate = LandscapeLayer.Context.CurrentTimePoint.Value.Date;
+        else
+            throw new NullReferenceException();
+        
+        DaysLived += (currentDate - LastDate).Days;
+        LastDate = currentDate;
     }
     
 }

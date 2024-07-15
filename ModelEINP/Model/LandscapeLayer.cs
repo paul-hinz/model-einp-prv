@@ -105,19 +105,19 @@ public class LandscapeLayer : AbstractLayer {
 
     public void RemoveAnimal(LandscapeLayer landscapeLayer, AbstractAnimal animal) {
         _unregisterAgent(landscapeLayer, animal);
-        if (animal._animalType is AnimalType.BisonBull or AnimalType.BisonCalf 
+        if (animal.AnimalType is AnimalType.BisonBull or AnimalType.BisonCalf 
             or AnimalType.BisonCow or AnimalType.BisonCow) {
             Bisons.Remove((Bison)animal);
         } 
-        else if (animal._animalType is AnimalType.ElkCalf or AnimalType.ElkCow 
+        else if (animal.AnimalType is AnimalType.ElkCalf or AnimalType.ElkCow 
                  or AnimalType.ElkBull or AnimalType.ElkNewborn) {
             Elks.Remove((Elk)animal);
         }
-        else if (animal._animalType is AnimalType.MooseCalf or AnimalType.MooseCow 
+        else if (animal.AnimalType is AnimalType.MooseCalf or AnimalType.MooseCow 
                  or AnimalType.MooseBull or AnimalType.MooseNewborn) {
             Moose.Remove((Moose)animal);
         }
-        else if (animal._animalType is AnimalType.WolfFemale or AnimalType.WolfMale 
+        else if (animal.AnimalType is AnimalType.WolfFemale or AnimalType.WolfMale 
                  or AnimalType.WolfPup or AnimalType.WolfNewborn) {
             Wolfs.Remove((Wolf)animal);
         }

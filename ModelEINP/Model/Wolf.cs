@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Mars.Interfaces.Annotations;
 using Mars.Interfaces.Environments;
@@ -9,9 +10,13 @@ namespace ModelEINP.Model;
 public class Wolf : AbstractAnimal
 {
     [ActiveConstructor]
-    public Wolf() {
-        //SetTestingValues();
-        InitPack();
+    public Wolf()
+    {
+    }
+
+    private void TestHerd()
+    {
+        Console.WriteLine(HerdId);
     }
 
     private const bool Logger = true;
@@ -45,6 +50,7 @@ public class Wolf : AbstractAnimal
             longitude,
             position)
     {
+        _pregnancyDurationInHours = PregnancyDurationInDays * 24;
         SetTestingValues();
         InitPack();
     }
@@ -54,13 +60,13 @@ public class Wolf : AbstractAnimal
         IsLeading = true;
         HerdId = 1;
         Age = 3;
-        _animalType = _random.Next(2) == 0 ? AnimalType.WolfMale : AnimalType.WolfFemale;
+        AnimalType = Random.Next(2) == 0 ? AnimalType.WolfMale : AnimalType.WolfFemale;
     }
 
     #region Properties and Fields
     
-    public override double Hydration { get; set; } = MaxHydration;
-    public override double Satiety { get; set; } = MaxSatiety;
+    protected override double Hydration { get; set; } = MaxHydration;
+    protected override double Satiety { get; set; } = MaxSatiety;
     public override Position Position { get; set; }
     public override Position Target { get; set; }
     [PropertyDescription(Name = "Latitude")]
@@ -69,9 +75,9 @@ public class Wolf : AbstractAnimal
     public override double Longitude { get; set; }
     
     [PropertyDescription(Name = "IsLeading")]
-    protected override bool IsLeading { get; set; }
-    [PropertyDescription (Name="HerdId")]
-    protected override int HerdId { get; set; }
+    public override bool IsLeading { get; set; }
+    [PropertyDescription (Name="HerdId")] 
+    public override int HerdId { get; set; }
     
     #endregion
 
@@ -102,31 +108,41 @@ public class Wolf : AbstractAnimal
     [PropertyDescription]
     public static double MaxHuntDistanceInM { get; set; }
     [PropertyDescription]
-    public static int PregnancyDurationInTicks { get; set; }
+    public static int PregnancyDurationInDays { get; set; }
+
+    [PropertyDescription] 
+    public static double RunningSpeedInMs { get; set; }
 
     //Chance for an adult female animal to become pregnant per year in percent
     //ToDo: adjust rate
     private const int ChanceForPregnancy = 99;
+    private static int _pregnancyDurationInHours;
     
     #endregion
-
-    //Lots of TODO
+    
     public override void Tick()
     {
-        _hoursLived++;
+
+        if (IsFirstTick)
+        {
+            FirstTick();
+            IsFirstTick = false;
+        }
+
+        UpdateDaysLived();
         
-        //give birth
-        if (_hoursLived % 1 == 0 && _pregnant) {
-            if (_pregnancyDuration < PregnancyDurationInTicks) {
+        //give birthTODO
+        if (Pregnant) {
+            if (PregnancyDuration < _pregnancyDurationInHours) {
                 if(Logger) Console.WriteLine("Wolf: " + ID + "is pregnant");
-                _pregnancyDuration++;
+                PregnancyDuration++;
             }
             else {
-                _pregnancyDuration = 0;
+                PregnancyDuration = 0;
                 var list = new List<Wolf>();
                 for (var i = 0; i < 4; i++)
                 {
-                    var wolf = _landscapeLayer.SpawnWolf(_landscapeLayer, _perimeter, _vegetationLayer, _vectorWaterLayer, _rasterWaterLayer,
+                    var wolf = LandscapeLayer.SpawnWolf(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                         AnimalType.WolfNewborn, false, HerdId, Latitude, Longitude, Position);
                     list.Add(wolf);
                 }
@@ -135,7 +151,7 @@ public class Wolf : AbstractAnimal
             }
         }
         
-        if (_hoursLived == 2)
+        if (DaysLived == 365)
         {
             YearlyRoutine();
         }
@@ -152,22 +168,45 @@ public class Wolf : AbstractAnimal
         
     }
 
+    public override void FirstTick()
+    {
+        if (LandscapeLayer.Context.StartTimePoint is not null) 
+            LastDate = LandscapeLayer.Context.StartTimePoint.Value.Date;
+        CalculateParams();
+        InitPack();
+    }
+
+    public override void CalculateParams()
+    {
+        //Calculating Movements per Tick
+        RunDistancePerTick = RunningSpeedInMs * TickLengthInSec;
+        RandomWalkMaxDistanceInM = (int)Math.Round ((RandomWalkMaxDistanceInM / (double) 3600) * TickLengthInSec);
+        RandomWalkMinDistanceInM = (int)Math.Round ((RandomWalkMinDistanceInM / (double) 3600) * TickLengthInSec);
+        
+        // Recalculation of dehydration and starvation rates 
+        var keys = _starvationRate.Keys.ToList();
+        foreach (var key in keys)
+        {
+            _starvationRate[key] = (_starvationRate[key] / 3600) * TickLengthInSec;
+        }
+    }
+
     protected override void UpdateState()
     {
         
         int currentHour;
-        if (_landscapeLayer.Context.CurrentTimePoint != null)
-            currentHour = _landscapeLayer.Context.CurrentTimePoint.Value.Hour;
+        if (LandscapeLayer.Context.CurrentTimePoint != null)
+            currentHour = LandscapeLayer.Context.CurrentTimePoint.Value.Hour;
         else
             throw new NullReferenceException();
         
         // adjust satiety
         if (currentHour is >= 21 and <= 23 or >= 0 and <= 4 ) {   
-            BurnSatiety(_starvationRate[_LifePeriod] / 4); //less food is consumed while sleeping
+            BurnSatiety(_starvationRate[LifePeriod] / 4); //less food is consumed while sleeping
         }
         else
         {
-            BurnSatiety(_starvationRate[_LifePeriod]);
+            BurnSatiety(_starvationRate[LifePeriod]);
         }
         if (Satiety > 100.0) Satiety = 100;
         
@@ -181,39 +220,38 @@ public class Wolf : AbstractAnimal
 
     public override void YearlyRoutine()
     {
-        _hoursLived = 0;
+        DaysLived = 0;
         Age++;
 
         //new LifePeriod
         var newLifePeriod = GetAnimalLifePeriodFromAge(Age);
-        if (newLifePeriod != _LifePeriod)
+        if (newLifePeriod != LifePeriod)
         {
-            if (newLifePeriod == AnimalLifePeriod.Adolescent) _animalType = AnimalType.WolfPup;
+            if (newLifePeriod == AnimalLifePeriod.Adolescent) AnimalType = AnimalType.WolfPup;
             
             if (newLifePeriod == AnimalLifePeriod.Adult)
             {
                 //decide sex, 50:50 chance of being male or female
-                _animalType = _random.Next(2) == 0 ? AnimalType.WolfMale : AnimalType.WolfFemale;
-                if(Logger) Console.WriteLine("Wolf: " + ID + "grew up and is: " + _animalType + " and isLeading: " + IsLeading);
+                AnimalType = Random.Next(2) == 0 ? AnimalType.WolfMale : AnimalType.WolfFemale;
+                if(Logger) Console.WriteLine("Wolf: " + ID + "grew up and is: " + AnimalType + " and isLeading: " + IsLeading);
 
-                //todo: leave pack
             }
-            _LifePeriod = newLifePeriod;
+            LifePeriod = newLifePeriod;
         }
         
         //reproduction
-        if (!(Age >= _reproductionYears[0] && Age <= _reproductionYears[1])) return;
+        if (!(Age >= ReproductionYears[0] && Age <= ReproductionYears[1])) return;
         
         //only mother wolf can get pregnant when a father is present, todo: check for distance
-        if (!_animalType.Equals(AnimalType.WolfFemale) || !IsLeading) return;
+        if (!AnimalType.Equals(AnimalType.WolfFemale) || !IsLeading) return;
         var pack = _packManager.FindById(HerdId);
-        if(Logger) Console.WriteLine("Wolf: " + _animalType + " HerdId: " + HerdId + " is leading: "+ IsLeading);
+        if(Logger) Console.WriteLine("Wolf: " + AnimalType + " HerdId: " + HerdId + " is leading: "+ IsLeading);
 
         if (pack?.Father is not null
-            && _LifePeriod == AnimalLifePeriod.Adult
-            && _random.Next(100) < ChanceForPregnancy-1) {
+            && LifePeriod == AnimalLifePeriod.Adult
+            && Random.Next(100) < ChanceForPregnancy-1) {
             if(Logger) Console.WriteLine("Wolf: " + ID + "got pregnant");
-            _pregnant = true;
+            Pregnant = true;
         }
         
     }
@@ -229,7 +267,7 @@ public class Wolf : AbstractAnimal
         if(Logger) Console.WriteLine("Looking for prey");
         //var testTargets = _landscapeLayer.Environment.Explore(Position);
         //Console.WriteLine(testTargets.Count());
-        var target = _landscapeLayer.Environment.GetNearest(Position, MaxHuntDistanceInM, IsAnimalPrey);
+        var target = LandscapeLayer.Environment.GetNearest(Position, MaxHuntDistanceInM, IsAnimalPrey);
         
         //ToDo: create calculation for different amount of satiety, depending on prey and size of hunting group(pack)
         if (target is null) return;
@@ -242,7 +280,7 @@ public class Wolf : AbstractAnimal
     //checks if animal is possible prey
     private static bool IsAnimalPrey(AbstractAnimal animal)
     {
-        return animal._animalType switch
+        return animal.AnimalType switch
         {
             AnimalType.BisonCow 
                 or AnimalType.BisonBull 
@@ -279,11 +317,11 @@ public class Wolf : AbstractAnimal
 
         if (IsLeading)
         {
-            if(_animalType == AnimalType.WolfMale)
+            if(AnimalType == AnimalType.WolfMale)
             {
                 pack.Father = this;
             }
-            if(_animalType == AnimalType.WolfFemale)
+            if(AnimalType == AnimalType.WolfFemale)
             {
                 pack.Mother = this;
             }

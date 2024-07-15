@@ -1,9 +1,9 @@
 {
   "globals": {
-    "deltaT": 1,
+    "deltaT": 15,
     "startPoint": "2018-11-18T00:00:00",
     "endPoint": "2018-11-20T16:00:00",
-    "deltaTUnit": "hours",
+    "deltaTUnit": "minutes",
     "console": false,
     "output": "csv",
     "options": {
@@ -72,6 +72,10 @@
         {
           "parameter": "RandomWalkMinDistanceInM",
           "value":  10
+        },
+        {
+          "parameter": "RunningSpeedInMs",
+          "value": 6
         }
       ],
       "file":"Resources/bisons.csv",
@@ -113,6 +117,10 @@
         {
           "parameter": "RandomWalkMinDistanceInM",
           "value":  10
+        },
+        {
+          "parameter": "RunningSpeedInMs",
+          "value": 6
         }
       ],
       "file":"Resources/moose.csv",
@@ -154,6 +162,10 @@
         {
           "parameter": "RandomWalkMinDistanceInM",
           "value":  10
+        },
+        {
+          "parameter": "RunningSpeedInMs",
+          "value": 6
         }
       ],
       "file":"Resources/elks.csv",
@@ -193,8 +205,12 @@
           "value": 900
         },
         {
-          "parameter": "PregnancyDurationInTicks",
-          "value": 8
+          "parameter": "PregnancyDurationInDays",
+          "value": 60
+        },
+        {
+          "parameter": "RunningSpeedInMs",
+          "value": 10
         }
       ],
       "file":"Resources/wolfs.csv",

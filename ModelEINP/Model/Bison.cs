@@ -42,8 +42,8 @@ public class Bison : AbstractAnimal {
     
     #region Properties and Fields
     
-    public override double Hydration { get; set; } = MaxHydration;
-    public override double Satiety { get; set; } = MaxSatiety;
+    protected override double Hydration { get; set; } = MaxHydration;
+    protected override double Satiety { get; set; } = MaxSatiety;
     public override Position Position { get; set; }
     public override Position Target { get; set; }
     [PropertyDescription(Name = "Latitude")]
@@ -51,9 +51,10 @@ public class Bison : AbstractAnimal {
     [PropertyDescription(Name = "Longitude")]
     public override double Longitude { get; set; }
     [PropertyDescription (Name="isLeading")]
-    protected override bool IsLeading { get; set; }
-    [PropertyDescription (Name="herdId")]
-    protected override int HerdId { get; set; }
+    public override bool IsLeading { get; set; }
+    [PropertyDescription (Name="herdId")] 
+    public override int HerdId { get; set; }
+    
     //Chance for a female animal to become pregnant per year
     public int ChanceForPregnancy = 10;
 
@@ -105,22 +106,31 @@ public class Bison : AbstractAnimal {
     public static double DailyWaterCalf { get; set; }
     [PropertyDescription]
     public static double DailyWaterAdolescent { get; set; }
+    [PropertyDescription] 
+    public static double RunningSpeedInMs { get; set; }
     #endregion
     
     public override void Tick() { 
         
-        _hoursLived++;
-        if (_hoursLived % 1 == 0 && _pregnant) {
-            if (_pregnancyDuration < 8) {
-                _pregnancyDuration++;
+        if (IsFirstTick)
+        {
+            FirstTick();
+            IsFirstTick = false;
+        }
+        
+        //TODO: Dependent on TickLength
+        DaysLived++;
+        if (DaysLived % 1 == 0 && Pregnant) {
+            if (PregnancyDuration < 80) {
+                PregnancyDuration++;
             }
             else {
-                _pregnancyDuration = 0;
-                _landscapeLayer.SpawnBison(_landscapeLayer, _perimeter, _vegetationLayer, _vectorWaterLayer, _rasterWaterLayer,
+                PregnancyDuration = 0;
+                LandscapeLayer.SpawnBison(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                     AnimalType.BisonCalf, false, HerdId, Latitude, Longitude, Position);
             }
         }
-        if (_hoursLived == 2)
+        if (DaysLived == 365)
         {
             YearlyRoutine();
         }
@@ -137,60 +147,83 @@ public class Bison : AbstractAnimal {
         }
         UpdateState();
     }
+    public override void FirstTick()
+    {
+        if (LandscapeLayer.Context.StartTimePoint is not null) 
+            LastDate = LandscapeLayer.Context.StartTimePoint.Value.Date;
+        CalculateParams();
+    }
+
+    public override void CalculateParams()
+    {
+        //Calculating Movements per Tick
+        RunDistancePerTick = RunningSpeedInMs * TickLengthInSec;
+        RandomWalkMaxDistanceInM = (int)Math.Round ((RandomWalkMaxDistanceInM / (double) 3600) * TickLengthInSec);
+        RandomWalkMinDistanceInM = (int)Math.Round ((RandomWalkMinDistanceInM / (double) 3600) * TickLengthInSec);
+        
+        // Recalculation of dehydration and starvation rates 
+        var keys = _starvationRate.Keys.ToList();
+        foreach (var key in keys)
+        {
+            _starvationRate[key] = (_starvationRate[key] / 3600) * TickLengthInSec;
+            _dehydrationRate[key] = (_dehydrationRate[key] / 3600) * TickLengthInSec;
+        }
+    }
+    
     protected override void UpdateState()
     {
         int currentHour;
-        if (_landscapeLayer.Context.CurrentTimePoint != null)
-            currentHour = _landscapeLayer.Context.CurrentTimePoint.Value.Hour;
+        if (LandscapeLayer.Context.CurrentTimePoint != null)
+            currentHour = LandscapeLayer.Context.CurrentTimePoint.Value.Hour;
         else
             throw new NullReferenceException();
         
 
         if (currentHour is >= 21 and <= 23 || currentHour is >= 0 and <= 4 ) {   
-            BurnSatiety(_starvationRate[_LifePeriod] / 4); //less food is consumed while sleeping
-            Dehydrate(_dehydrationRate[_LifePeriod]/2);           //less water is consumed at night
+            BurnSatiety(_starvationRate[LifePeriod] / 4); //less food is consumed while sleeping
+            Dehydrate(_dehydrationRate[LifePeriod]/2);           //less water is consumed at night
         }
         else
         {
-            BurnSatiety(_starvationRate[_LifePeriod]);
-            Dehydrate(_dehydrationRate[_LifePeriod]);
+            BurnSatiety(_starvationRate[LifePeriod]);
+            Dehydrate(_dehydrationRate[LifePeriod]);
         }
     }
     
     public override void YearlyRoutine() {
-        _hoursLived = 0;
+        DaysLived = 0;
         Age++;
 
         //decide sex once the bison reaches the adult stage
         var newLifePeriod = GetAnimalLifePeriodFromAge(Age);
-        if (newLifePeriod != _LifePeriod) {
+        if (newLifePeriod != LifePeriod) {
             if (newLifePeriod == AnimalLifePeriod.Adult) {
                 //50:50 chance of being male or female
-                if (_random.Next(2) == 0)
-                    _animalType = AnimalType.BisonBull;
+                if (Random.Next(2) == 0)
+                    AnimalType = AnimalType.BisonBull;
                 else
-                    _animalType = AnimalType.BisonCow;
+                    AnimalType = AnimalType.BisonCow;
             }
-            _LifePeriod = newLifePeriod;
+            LifePeriod = newLifePeriod;
         }
         
         //max age 25
         if (Age > 15)
         {
-            _chanceOfDeath = (Age - 15) * 10;
-            var rnd = _random.Next(0, 100);
-            if (rnd >= _chanceOfDeath) return;
+            ChanceOfDeath = (Age - 15) * 10;
+            var rnd = Random.Next(0, 100);
+            if (rnd >= ChanceOfDeath) return;
             Die(MattersOfDeath.Age);
             return;
         }
 
         //check for possible reproduction
-        if (!(Age >= _reproductionYears[0] && Age <= _reproductionYears[1])) return;
+        if (!(Age >= ReproductionYears[0] && Age <= ReproductionYears[1])) return;
 
-        if (!_animalType.Equals(AnimalType.BisonCow)) return;
+        if (!AnimalType.Equals(AnimalType.BisonCow)) return;
 
-        if (_LifePeriod == AnimalLifePeriod.Adult && _random.Next(100) < ChanceForPregnancy-1) {
-            _pregnant = true;
+        if (LifePeriod == AnimalLifePeriod.Adult && Random.Next(100) < ChanceForPregnancy-1) {
+            Pregnant = true;
         }
     }
     
