@@ -2,7 +2,7 @@
   "globals": {
     "deltaT": 15,
     "startPoint": "2018-11-18T00:00:00",
-    "endPoint": "2018-11-20T16:00:00",
+    "endPoint": "2018-11-18T16:00:00",
     "deltaTUnit": "minutes",
     "console": false,
     "output": "csv",

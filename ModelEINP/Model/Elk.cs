@@ -115,20 +115,21 @@ public class Elk : AbstractAnimal {
         {
             FirstTick();
             IsFirstTick = false;
+            return;
         }
         
-        DaysLived++;
-        if (DaysLived % 1 == 0 && Pregnant) {
-            if (PregnancyDuration < 80) {
-                PregnancyDuration++;
+        TicksLived++;
+        if (Pregnant) {
+            if (TicksToDays(PregnancyDurationInTicks) < 80) {
+                PregnancyDurationInTicks++;
             }
             else {
-                PregnancyDuration = 0;
+                PregnancyDurationInTicks = 0;
                 LandscapeLayer.SpawnElk(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                     AnimalType.ElkCalf, false, HerdId, Latitude, Longitude, Position);
             }
         }
-        if (DaysLived == 365)
+        if (TicksToDays(TicksLived) >= 365)
         {
             YearlyRoutine();
         }
@@ -191,7 +192,7 @@ public class Elk : AbstractAnimal {
     }
 
     public override void YearlyRoutine() {
-        DaysLived = 0;
+        TicksLived = 0;
         Age++;
 
         //decide sex once the bison reaches the adult stage

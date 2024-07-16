@@ -50,7 +50,6 @@ public class Wolf : AbstractAnimal
             longitude,
             position)
     {
-        _pregnancyDurationInHours = PregnancyDurationInDays * 24;
         SetTestingValues();
         InitPack();
     }
@@ -116,7 +115,6 @@ public class Wolf : AbstractAnimal
     //Chance for an adult female animal to become pregnant per year in percent
     //ToDo: adjust rate
     private const int ChanceForPregnancy = 99;
-    private static int _pregnancyDurationInHours;
     
     #endregion
     
@@ -127,18 +125,19 @@ public class Wolf : AbstractAnimal
         {
             FirstTick();
             IsFirstTick = false;
+            return;
         }
 
         UpdateDaysLived();
         
-        //give birthTODO
+        //check for pregnancy duration and eventually give birth
         if (Pregnant) {
-            if (PregnancyDuration < _pregnancyDurationInHours) {
+            if (TicksToDays(PregnancyDurationInTicks) < PregnancyDurationInDays) {
                 if(Logger) Console.WriteLine("Wolf: " + ID + "is pregnant");
-                PregnancyDuration++;
+                PregnancyDurationInTicks++;
             }
             else {
-                PregnancyDuration = 0;
+                PregnancyDurationInTicks = 0;
                 var list = new List<Wolf>();
                 for (var i = 0; i < 4; i++)
                 {
@@ -151,12 +150,14 @@ public class Wolf : AbstractAnimal
             }
         }
         
-        if (DaysLived == 365)
+        //check for yearly event
+        if (TicksToDays(TicksLived) >= 365)
         {
             YearlyRoutine();
         }
         if (!IsAlive) return;
        
+        //daily life
         if (Satiety < HungryThreshold) {
             LookForPreyAndHunt();
         }
@@ -164,6 +165,7 @@ public class Wolf : AbstractAnimal
         else {
             DoRandomWalk(10);
         }
+        
         UpdateState();
         
     }
@@ -220,7 +222,7 @@ public class Wolf : AbstractAnimal
 
     public override void YearlyRoutine()
     {
-        DaysLived = 0;
+        TicksLived = 0;
         Age++;
 
         //new LifePeriod

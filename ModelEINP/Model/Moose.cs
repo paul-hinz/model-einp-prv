@@ -114,20 +114,21 @@ public class Moose : AbstractAnimal {
         {
             FirstTick();
             IsFirstTick = false;
+            return;
         }
         
-        DaysLived++;
-        if (DaysLived % 1 == 0 && Pregnant) {
-            if (PregnancyDuration < 60) {
-                PregnancyDuration++;
+        TicksLived++;
+        if (Pregnant) {
+            if (TicksToDays(PregnancyDurationInTicks) < 60) {
+                PregnancyDurationInTicks++;
             }
             else {
-                PregnancyDuration = 0;
+                PregnancyDurationInTicks = 0;
                 LandscapeLayer.SpawnMoose(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                     AnimalType.MooseCalf, false, HerdId, Latitude, Longitude, Position);
             }
         }
-        if (DaysLived == 365)
+        if (TicksToDays(TicksLived) >= 365)
         {
             YearlyRoutine();
         }
@@ -190,7 +191,7 @@ public class Moose : AbstractAnimal {
     }
 
     public override void YearlyRoutine() {
-        DaysLived = 0;
+        TicksLived = 0;
         Age++;
 
         //decide sex once the bison reaches the adult stage

@@ -65,12 +65,12 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     public RasterWaterLayer RasterWaterLayer { get; set; }
     public VegetationLayer VegetationLayer { get; set; }
 
-    protected double TickLengthInSec = File.ReadAllText("tick.tmp").ToDouble();
-    protected int DaysLived;
+    protected double TickLengthInSec = GlobalValueHelper.TickSeconds;
+    protected int TicksLived;
     public AnimalType AnimalType;
     protected readonly int[] ReproductionYears = {2, 15};
     protected bool Pregnant;
-    protected int PregnancyDuration;
+    protected int PregnancyDurationInTicks;
     protected int ChanceOfDeath;
     protected int Age { get; set; }
     protected AnimalLifePeriod LifePeriod;
@@ -240,8 +240,13 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         else
             throw new NullReferenceException();
         
-        DaysLived += (currentDate - LastDate).Days;
+        TicksLived += (currentDate - LastDate).Days;
         LastDate = currentDate;
+    }
+
+    protected double TicksToDays(int ticks)
+    {
+        return (ticks * TickLengthInSec) / (60 * 60 * 24);
     }
     
 }

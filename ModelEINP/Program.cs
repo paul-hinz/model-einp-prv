@@ -34,10 +34,10 @@ internal static class Program {
         var file = File.ReadAllText("config.json");
         var config = SimulationConfig.Deserialize(file);
 
-        // Reads the TickLength in seconds and writes it to a tmp file for agents to use easily during runtime
+        // Reads the TickLength in seconds and stores in a static helper class for agents to see during runtime
         Debug.Assert(config.Globals.DeltaTTimeSpan != null, "config.Globals.DeltaTTimeSpan != null");
         var timeSpan = config.Globals.DeltaTTimeSpan.Value.TotalSeconds;
-        File.WriteAllBytes("tick.tmp", timeSpan.ToUtf8Bytes());
+        GlobalValueHelper.TickSeconds = timeSpan;
         Console.WriteLine("Seconds Per Tick: " + timeSpan);
 
         // Create simulation task
@@ -48,8 +48,6 @@ internal static class Program {
 
         // Feedback to user that simulation run was successful
         Console.WriteLine($"Simulation execution finished after {results.Iterations} steps");
-        
-        //Delete tmp file
-        File.Delete("tick.tmp");
+       
     }
 }

@@ -116,21 +116,22 @@ public class Bison : AbstractAnimal {
         {
             FirstTick();
             IsFirstTick = false;
+            return;
         }
         
         //TODO: Dependent on TickLength
-        DaysLived++;
-        if (DaysLived % 1 == 0 && Pregnant) {
-            if (PregnancyDuration < 80) {
-                PregnancyDuration++;
+        TicksLived++;
+        if (Pregnant) {
+            if (TicksToDays(PregnancyDurationInTicks) < 80) {
+                PregnancyDurationInTicks++;
             }
             else {
-                PregnancyDuration = 0;
+                PregnancyDurationInTicks = 0;
                 LandscapeLayer.SpawnBison(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                     AnimalType.BisonCalf, false, HerdId, Latitude, Longitude, Position);
             }
         }
-        if (DaysLived == 365)
+        if (TicksToDays(TicksLived) >= 365)
         {
             YearlyRoutine();
         }
@@ -191,7 +192,7 @@ public class Bison : AbstractAnimal {
     }
     
     public override void YearlyRoutine() {
-        DaysLived = 0;
+        TicksLived = 0;
         Age++;
 
         //decide sex once the bison reaches the adult stage
