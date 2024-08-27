@@ -106,6 +106,15 @@ public class Elk : AbstractAnimal {
     public static double DailyWaterCalf { get; set; }
     [PropertyDescription]
     public static double DailyWaterAdolescent { get; set; }
+    
+    //total weight of edible meat for wolves in kg   
+    [PropertyDescription]
+    public static double EdibleWeightAdult { get; set; }
+    [PropertyDescription]
+    public static double EdibleWeightCalf { get; set; }
+    [PropertyDescription]
+    public static double EdibleWeightAdolescent { get; set; }
+    
     [PropertyDescription] 
     public static double RunningSpeedInMs { get; set; }
     #endregion
@@ -134,6 +143,11 @@ public class Elk : AbstractAnimal {
             YearlyRoutine();
         }
         if (!IsAlive) return;
+
+        if (TickLengthInSec < 300 && IsPartOfHunt)
+        {
+            //do evading movements from wolfs
+        }
        
         if (Satiety < 40) {
             LookForFoodAndEat();
@@ -214,7 +228,7 @@ public class Elk : AbstractAnimal {
             ChanceOfDeath = (Age - 15) * 10;
             var rnd = Random.Next(0, 100);
             if (rnd >= ChanceOfDeath) return;
-            Die(MattersOfDeath.Age);
+            Die(MattersOfDeath.Natural);
             return;
         }
 
@@ -233,5 +247,15 @@ public class Elk : AbstractAnimal {
         if (age < 1) return AnimalLifePeriod.Calf;
         return age <= 2 ? AnimalLifePeriod.Adolescent : AnimalLifePeriod.Adult;
     }
-    
+
+    public override double SatietyFactor()
+    {
+        //low satiety of prey is not used to decrease edible weight, but that could be an improvement
+        return LifePeriod switch
+        {
+            AnimalLifePeriod.Adult => EdibleWeightAdult,
+            AnimalLifePeriod.Adolescent => EdibleWeightAdolescent,
+            _ => EdibleWeightCalf
+        };
+    }
 }

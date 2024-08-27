@@ -50,6 +50,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     protected double RunDistancePerTick = 0;
     protected bool IsFirstTick = true;
     protected DateTime LastDate;
+    public bool IsPartOfHunt = false;
     public Guid ID { get; set; }
     public abstract Position Position { get; set; }
     public abstract Position Target { get; set; }
@@ -73,7 +74,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     protected int PregnancyDurationInTicks;
     protected int ChanceOfDeath;
     protected int Age { get; set; }
-    protected AnimalLifePeriod LifePeriod;
+    public AnimalLifePeriod LifePeriod;
     public MattersOfDeath MatterOfDeath { get; private set; }
     protected bool IsAlive { get; set; } = true;
     
@@ -201,6 +202,8 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     protected void BurnSatiety(double rate)
     {
+        //Max rate is 49, so an animal cant die in less then 3 ticks at longer tick lengths
+        if (rate > 49) rate = 49;
         if (Satiety > 0) {
             if (Satiety > rate) {
                 Satiety -= rate;
@@ -223,6 +226,8 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     public abstract void YearlyRoutine();
 
     public abstract AnimalLifePeriod GetAnimalLifePeriodFromAge(int age);
+
+    public abstract double SatietyFactor();
     
     
     public void Die(MattersOfDeath matterOfDeath)
@@ -232,6 +237,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         LandscapeLayer.RemoveAnimal(LandscapeLayer, this);
     }
 
+    /*
     protected void UpdateDaysLived()
     {
         DateTime currentDate;
@@ -240,13 +246,14 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
         else
             throw new NullReferenceException();
         
-        TicksLived += (currentDate - LastDate).Days;
+        DaysLived += (currentDate - LastDate).Days;
         LastDate = currentDate;
     }
+    */
 
     protected double TicksToDays(int ticks)
     {
         return (ticks * TickLengthInSec) / (60 * 60 * 24);
     }
-    
+
 }

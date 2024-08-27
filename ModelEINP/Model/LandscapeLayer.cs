@@ -118,7 +118,7 @@ public class LandscapeLayer : AbstractLayer {
             Moose.Remove((Moose)animal);
         }
         else if (animal.AnimalType is AnimalType.WolfFemale or AnimalType.WolfMale 
-                 or AnimalType.WolfPup or AnimalType.WolfNewborn) {
+                 or AnimalType.WolfYearling or AnimalType.WolfPup) {
             Wolfs.Remove((Wolf)animal);
         }
         Environment.Remove(animal);

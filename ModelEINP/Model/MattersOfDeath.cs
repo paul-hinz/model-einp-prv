@@ -5,5 +5,5 @@ public enum MattersOfDeath {
     Culling,
     NoWater,
     NoFood,
-    Age
+    Natural
 }

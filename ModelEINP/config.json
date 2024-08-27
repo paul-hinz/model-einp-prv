@@ -66,6 +66,18 @@
           "value": 17
         },
         {
+          "parameter": "EdibleWeightAdult",
+          "value": 300
+        },
+        {
+          "parameter": "EdibleWeightAdolescent",
+          "value": 150
+        },
+        {
+          "parameter": "EdibleWeightCalf",
+          "value": 75
+        },
+        {
           "parameter": "RandomWalkMaxDistanceInM",
           "value":  500
         },
@@ -111,6 +123,18 @@
           "value": 79
         },
         {
+          "parameter": "EdibleWeightAdult",
+          "value": 300
+        },
+        {
+          "parameter": "EdibleWeightAdolescent",
+          "value": 150
+        },
+        {
+          "parameter": "EdibleWeightCalf",
+          "value": 75
+        },
+        {
           "parameter": "RandomWalkMaxDistanceInM",
           "value":  500
         },
@@ -154,6 +178,18 @@
         {
           "parameter": "DailyWaterCalf",
           "value": 9
+        },
+        {
+          "parameter": "EdibleWeightAdult",
+          "value": 300
+        },
+        {
+          "parameter": "EdibleWeightAdolescent",
+          "value": 150
+        },
+        {
+          "parameter": "EdibleWeightCalf",
+          "value": 75
         },
         {
           "parameter": "RandomWalkMaxDistanceInM",
@@ -207,6 +243,18 @@
         {
           "parameter": "PregnancyDurationInDays",
           "value": 60
+        },
+        {
+          "parameter": "MinLitterSize",
+          "value": 2
+        },
+        {
+          "parameter": "MaxLitterSize",
+          "value": 10
+        },
+        {
+          "parameter": "PupSurvivalRate",
+          "value": 25
         },
         {
           "parameter": "RunningSpeedInMs",

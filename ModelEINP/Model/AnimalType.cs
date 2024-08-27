@@ -20,6 +20,6 @@ public enum AnimalType {
     
     WolfFemale,
     WolfMale,
-    WolfPup,
-    WolfNewborn
+    WolfYearling,
+    WolfPup
 }
