@@ -9,6 +9,7 @@ public class PackManager
 {
     private int _nextId = 1;
     private readonly List<WolfPack> _packs = new List<WolfPack>();
+    public static readonly object PackChangingLock = new object();
 
     private void UpdateNextId(int newId)
     {
@@ -24,7 +25,7 @@ public class PackManager
     {
         var wolfPack = new WolfPack(packId, father, mother, other);
         _packs.Add(wolfPack);
-        Console.WriteLine($"Pack with Id: {packId} created");
+        //Console.WriteLine($"Pack with Id: {packId} created");
         UpdateNextId(packId);
         return wolfPack;
     }

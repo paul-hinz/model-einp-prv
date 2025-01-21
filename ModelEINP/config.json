@@ -1,7 +1,7 @@
 {
   "globals": {
-    "deltaT": 15,
-    "startPoint": "2018-11-18T00:00:00",
+    "deltaT": 3,
+    "startPoint": "2018-11-18T08:00:00",
     "endPoint": "2018-11-18T16:00:00",
     "deltaTUnit": "minutes",
     "console": false,
@@ -225,8 +225,12 @@
           "value": 2.0
         },
         {
+          "parameter": "RandomRoamMaxDistanceInM",
+          "value": 4000
+        },
+        {
           "parameter": "RandomWalkMaxDistanceInM",
-          "value": 500
+          "value": 700
         },
         {
           "parameter": "RandomWalkMinDistanceInM",
@@ -234,7 +238,7 @@
         },
         {
           "parameter": "HungryThreshold",
-          "value": 70
+          "value": 99
         },
         {
           "parameter": "MaxHuntDistanceInM",
@@ -259,6 +263,10 @@
         {
           "parameter": "RunningSpeedInMs",
           "value": 10
+        },
+        {
+          "parameter": "SafeDistanceToPrey",
+          "value": 2
         }
       ],
       "file":"Resources/wolfs.csv",
@@ -266,7 +274,7 @@
         "delimiter": ";"
       },
       "outputs": [
-        
+        {"kind": "trips"}
       ]
     }
   ]

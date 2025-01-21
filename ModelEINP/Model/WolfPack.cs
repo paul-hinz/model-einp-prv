@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using log4net.Repository.Hierarchy;
 
 namespace ModelEINP.Model;
 
@@ -8,6 +10,8 @@ public class WolfPack
     private int Id { get; }
     public Wolf Father { get; set;}
     public Wolf Mother { get; set; }
+
+    public WolfEncirclingList EncirclingList;
 
     internal WolfPack(int packId, Wolf father, Wolf mother, List<Wolf> other)
     {
@@ -45,6 +49,8 @@ public class WolfPack
             wolf.IsPartOfHunt = true;
             wolf.HuntingTarget = target;
         }
+
+        EncirclingList = new WolfEncirclingList();
     }
     
     //removes hunting fields for whole pack
@@ -55,6 +61,8 @@ public class WolfPack
             wolf.IsPartOfHunt = false;
             wolf.HuntingTarget = null;
         }
+
+        EncirclingList = null;
     }
 
     //deletes a wolf from the pack and fills gap in breeding pair, if needed and possible

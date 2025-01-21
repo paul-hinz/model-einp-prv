@@ -49,7 +49,6 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     protected double RunDistancePerTick = 0;
     protected bool IsFirstTick = true;
-    protected DateTime LastDate;
     public bool IsPartOfHunt = false;
     public Guid ID { get; set; }
     public abstract Position Position { get; set; }
@@ -68,7 +67,8 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     protected double TickLengthInSec = GlobalValueHelper.TickSeconds;
     protected int TicksLived;
-    public AnimalType AnimalType;
+    [PropertyDescription(Name = "_animalType")]
+    public AnimalType AnimalType { get; set;}
     protected readonly int[] ReproductionYears = {2, 15};
     protected bool Pregnant;
     protected int PregnancyDurationInTicks;

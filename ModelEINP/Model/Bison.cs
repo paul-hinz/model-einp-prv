@@ -163,8 +163,6 @@ public class Bison : AbstractAnimal {
     }
     public override void FirstTick()
     {
-        if (LandscapeLayer.Context.StartTimePoint is not null) 
-            LastDate = LandscapeLayer.Context.StartTimePoint.Value.Date;
         CalculateParams();
     }
 
