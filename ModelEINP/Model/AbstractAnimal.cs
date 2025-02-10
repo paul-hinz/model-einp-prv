@@ -49,7 +49,6 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     protected double RunDistancePerTick = 0;
     protected bool IsFirstTick = true;
-    public bool IsPartOfHunt = false;
     public Guid ID { get; set; }
     public abstract Position Position { get; set; }
     public abstract Position Target { get; set; }
@@ -60,7 +59,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     public abstract double Longitude { get; set; }
     public Perimeter Perimeter { get; set; }
     protected abstract double Hydration { get; set; }
-    protected abstract double Satiety { get; set; }
+    public abstract double Satiety { get; set; }
     public VectorWaterLayer VectorWaterLayer { get; set; }
     public RasterWaterLayer RasterWaterLayer { get; set; }
     public VegetationLayer VegetationLayer { get; set; }
@@ -76,12 +75,14 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     protected int Age { get; set; }
     public AnimalLifePeriod LifePeriod;
     public MattersOfDeath MatterOfDeath { get; private set; }
-    protected bool IsAlive { get; set; } = true;
+    public bool IsAlive { get; set; } = true;
     
     public abstract bool IsLeading { get; set; }
     public abstract int HerdId { get; set; }
     
     protected static readonly Random Random = new ();
+
+    public readonly object AnimalChangingLock = new object();
     
     #endregion
 
@@ -93,7 +94,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     
     [PropertyDescription]
     public int RandomWalkMinDistanceInM { get; set;  }
-    
+
     protected const double MaxHydration = 100.0;
     protected const double MaxSatiety = 100.0; 
     public const int MaxAge = 25;
@@ -129,7 +130,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
             Target = Position.GetRelativePosition(randomDirection, randomDistance);
             
             if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
-                Position = Target;
+                JumpTo(Target);
                 break;
             }
             numOfAttempts--;
@@ -159,7 +160,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
             Target =  new Position(point.X, point.Y);
             
             if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
-                Position = Target;
+                JumpTo(Target);
                 Hydration += 20;
                 break;
             }
@@ -188,7 +189,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
                 Target = new Position(targetLon, targetLat);
 
                 if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
-                    Position = Target;
+                    JumpTo(Target);
                     Satiety += 12;
                     break;
                 }
@@ -227,6 +228,10 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     public abstract AnimalLifePeriod GetAnimalLifePeriodFromAge(int age);
 
+    /// <summary>
+    /// calculates the nutritional value if eaten by a wolf
+    /// </summary>
+    /// <returns>total value of satiety that should be incresed</returns>
     public abstract double SatietyFactor();
     
     
@@ -254,6 +259,12 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     protected double TicksToDays(int ticks)
     {
         return (ticks * TickLengthInSec) / (60 * 60 * 24);
+    }
+
+    protected void JumpTo(Position position)
+    {
+        LandscapeLayer.Environment.MoveToPosition(this, position.Latitude, position.Longitude);
+        Position = position;
     }
 
 }

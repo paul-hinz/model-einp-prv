@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Mars.Common;
-using Mars.Components.Layers.Temporal;
 using Mars.Interfaces.Annotations;
 using Mars.Interfaces.Environments;
 using NetTopologySuite.Utilities;
+// ReSharper disable InconsistentNaming
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace ModelEINP.Model; 
 
@@ -22,8 +24,6 @@ public class Wolf : AbstractAnimal
     }
 
     private const bool Logger = true;
-    private static PackManager _packManager;
-
     
     [ActiveConstructor] 
     public Wolf(
@@ -53,7 +53,7 @@ public class Wolf : AbstractAnimal
             position)
     {
         SetTestingValues();
-        InitPack();
+        InitNextID();
     }
 
     private void SetTestingValues()
@@ -67,7 +67,7 @@ public class Wolf : AbstractAnimal
     #region Properties and Fields
     
     protected override double Hydration { get; set; } = MaxHydration;
-    protected override double Satiety { get; set; } = MaxSatiety;
+    public override double Satiety { get; set; } = MaxSatiety;
     public override Position Position { get; set; }
     public override Position Target { get; set; }
     [PropertyDescription(Name = "Latitude")]
@@ -80,13 +80,15 @@ public class Wolf : AbstractAnimal
     [PropertyDescription (Name="HerdId")] 
     public override int HerdId { get; set; }
 
-    public AbstractAnimal HuntingTarget = null;
-    public double BearingToPrey;
+    //fields for hunting
+    private AbstractAnimal HuntingTarget;
+    private double BearingToPrey;
     private Position LastPosition;
-    public readonly object WolfLock = new object();
-    private static readonly object CircleLock = new object();
+    private bool IsOnCircle;
+
+    private static int NextID = 1;
+    private bool IsLookingForPartner { get; set; }
     
-    private WolfPack Pack { get; set; }
     
     #endregion
 
@@ -96,12 +98,12 @@ public class Wolf : AbstractAnimal
         /*
          * Initial value is per Hour
          * The Daily Food Need is taken into account at CalculateSatietyFactor(Animal)
-         * Assumption: A Wolf can survive with eating every 3 days
-         * --> Verliert jede Stunde ein 3*18 tel, weil durch die Nacht in Summe 18 Stunden pro Tag abgezogen werden
+         * Assumption: A Wolf can survive with eating every 10 days
+         * --> Verliert jede Stunde ein 10*18 tel, weil durch die Nacht in Summe 18 Stunden pro Tag abgezogen werden
          */
-        { AnimalLifePeriod.Calf, MaxSatiety / (3 * 18) }, 
-        { AnimalLifePeriod.Adolescent, MaxSatiety / (3 * 18) }, 
-        { AnimalLifePeriod.Adult, MaxSatiety / (3 * 18) }  
+        { AnimalLifePeriod.Calf, MaxSatiety / (10 * 18) }, 
+        { AnimalLifePeriod.Adolescent, MaxSatiety / (10 * 18) }, 
+        { AnimalLifePeriod.Adult, MaxSatiety / (10 * 18) }  
     };
     
     //total need of food per day in kilograms
@@ -117,8 +119,11 @@ public class Wolf : AbstractAnimal
     public static double HungryThreshold { get; set; }
     [PropertyDescription]
     
-    //distance is per hour
+    //distance is per second
     public static double MaxHuntDistanceInM { get; set; }
+    [PropertyDescription]
+    
+    public static double VisionRangeInM { get; set; }
     [PropertyDescription]
     public static int PregnancyDurationInDays { get; set; }
     
@@ -138,6 +143,7 @@ public class Wolf : AbstractAnimal
     //Chance for an adult female animal to become pregnant per year in percent
     //rate needs to be adjusted with data
     private const int ChanceForPregnancy = 75;
+    private bool isDetailed;
     
     #endregion
     
@@ -151,7 +157,6 @@ public class Wolf : AbstractAnimal
         }
         
         TicksLived++;
-        Pack = _packManager.FindById(HerdId);
         
         //check for pregnancy duration and eventually give birth
         if (Pregnant) {
@@ -161,15 +166,12 @@ public class Wolf : AbstractAnimal
             }
             else {
                 PregnancyDurationInTicks = 0;
-                var list = new List<Wolf>();
                 var litterSize = Random.Next(MinLitterSize, MaxLitterSize);
                 for (var i = 0; i < litterSize; i++)
                 {
-                    var wolf = LandscapeLayer.SpawnWolf(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
+                    LandscapeLayer.SpawnWolf(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                         AnimalType.WolfPup, false, HerdId, Latitude, Longitude, Position);
-                    list.Add(wolf);
                 }
-                _packManager.FindById(HerdId).InsertNewborns(list);
                 if(Logger) Console.WriteLine("Wolf: " + ID + "gave birth");
             }
         }
@@ -184,13 +186,13 @@ public class Wolf : AbstractAnimal
         //daily life
         if (Satiety < HungryThreshold)
         {
-            if (TickLengthInSec > 90)
-            {
-               EasyHuntAndSearch();
+            if (isDetailed)
+            { 
+                DetailedHunting();
             }
             else
-            {
-                DetailedHunting();
+            { 
+                EasyHuntAndSearch(); 
             }
         }
         else
@@ -200,22 +202,19 @@ public class Wolf : AbstractAnimal
         }
 
         //only males look actively for a partner, not for ecological reasons, but for simpler simulation
-        if (IsLookingForPartner() && AnimalType == AnimalType.WolfMale) LookForPartner();
+        if (IsLookingForPartner && AnimalType == AnimalType.WolfMale) LookForPartner();
 
         UpdateState();
         
     }
-
+    
     public override void FirstTick()
     {
         LastPosition = Position;
         CalculateParams();
-        lock (PackManager.PackChangingLock)
-        {
-            InitPack();
-        }
+        InitNextID();
     }
-
+    
     public override void CalculateParams()
     {
         //Calculating Movements per Tick
@@ -229,6 +228,8 @@ public class Wolf : AbstractAnimal
         {
             _starvationRate[key] = (_starvationRate[key] / 3600) * TickLengthInSec;
         }
+
+        isDetailed = TickLengthInSec < 60;
 
         if (TickLengthInSec > 24 * 60 * 60) HungryThreshold = 101;
     }
@@ -263,7 +264,7 @@ public class Wolf : AbstractAnimal
             if(Logger) Console.WriteLine("A Wolf starved");
         }
     }
-
+    
     public override void YearlyRoutine()
     {
         TicksLived = 0;
@@ -279,7 +280,7 @@ public class Wolf : AbstractAnimal
                 //Pups have a high chance of dying in the first year
                 if (Random.Next(100) > PupSurvivalRate)
                 {
-                    Pack.LeavePack(this);
+                    //Pack.LeavePack(this);
                     Die(MattersOfDeath.Natural);
                     if(Logger) Console.WriteLine("A Pup died");
                 }
@@ -298,17 +299,30 @@ public class Wolf : AbstractAnimal
         //33% chance to leave the pack and found a new one if adult and not the leader
         if (!IsLeading && LifePeriod == AnimalLifePeriod.Adult)
         {
-            if (Random.Next(3) == 0) _packManager.StartNewPack(this);
+            if (Random.Next(3) == 0)
+            {
+                HerdId = GetNextID();
+                if (Logger) Console.WriteLine("Leaving a pack and starting a new one with ID: " + HerdId);
+                IsLeading = true;
+                IsLookingForPartner = true;
+                // _packManager.StartNewPack(this);
+            }
+            
         }
         
         //reproduction
         if (!(Age >= ReproductionYears[0] && Age <= ReproductionYears[1])) return;
         
-        //only mother wolf can get pregnant when a father is present, todo: check for distance
+        //only mother wolf can get pregnant when a father is present 
         if (!AnimalType.Equals(AnimalType.WolfFemale) || !IsLeading) return;
         if(Logger) Console.WriteLine("Wolf: " + AnimalType + " HerdId: " + HerdId + " is leading: "+ IsLeading);
 
-        if (Pack?.Father is not null
+        //find a partner (must be male, same pack and leading)
+        var partner = LandscapeLayer.Environment.Explore(Position, VisionRangeInM * 10, 1, 
+            animal => animal is Wolf wolf && wolf.HerdId == this.HerdId && wolf.IsLeading && wolf.AnimalType.Equals(AnimalType.WolfMale)
+            ).FirstOrDefault();
+        
+        if (partner is not null
             && LifePeriod == AnimalLifePeriod.Adult
             && Random.Next(100) < ChanceForPregnancy-1) 
         {
@@ -330,15 +344,11 @@ public class Wolf : AbstractAnimal
         throw new InvalidOperationException();
     }
 
-    private bool IsLookingForPartner()
-    {
-        if (LifePeriod != AnimalLifePeriod.Adult) return false;
-        if (Pack.Father == this && Pack.Mother is null) return true;
-        if (Pack.Mother == this && Pack.Father is null) return true;
-        return false;
-    }
-
-    public void GiveFood(double food)
+    /// <summary>
+    /// Improves satiety value dependend on given food and daily need
+    /// </summary>
+    /// <param name="food"> nutritional value (in kgs)</param>
+    private void GiveFood(double food)
     {
         var need = LifePeriod switch
         {
@@ -349,25 +359,73 @@ public class Wolf : AbstractAnimal
         Satiety += (food * 100) / need;
     }
     
-    private void LookForPrey()
+    /// <summary>
+    /// Simulates movement through the park in search for prey. Depends on situation and role in pack
+    /// </summary>
+    private void LookForPrey(List<AbstractAnimal> packList)
     {
-        if (this == Pack.GetLeader())
+        Wolf leader = null;
+        
+        foreach (var w in packList.Cast<Wolf>().Where(w => w.IsLeading))
         {
-            if(Logger) Console.WriteLine("Looking for prey");
-            DoRandomRoam(4);
+            if (w.AnimalType.Equals(AnimalType.WolfFemale) && leader is null)
+            {
+                leader = w;
+            }
+            if(w.AnimalType.Equals(AnimalType.WolfMale))
+            {
+                leader = w;
+            }
+        }
+        
+        leader ??= this;
+        
+        if (this == leader)
+        {
+            if (HuntingTarget is null)
+            {
+                if (Logger) Console.WriteLine("Looking for prey");
+                DoRandomRoam(4);
+            }
+            else
+            {
+                DoRandomFollow(HuntingTarget.Position, 5);
+            }
         }
         else
         {
-            if(Logger) Console.WriteLine("Following on search for prey");
-            var leader = Pack.GetLeader();
+            if(Logger && HuntingTarget is null) Console.WriteLine("Following on search for prey");
             DoRandomFollow(leader.Position, 5);
         }
-        //Todo: find target with explore
-        var target = LandscapeLayer.Environment.GetNearest(Position, MaxHuntDistanceInM, IsAnimalPrey);
-        if (target is not null)
+        
+        if(HuntingTarget is not null) return;
+
+        double range;
+        if (isDetailed)
         {
-            if (Logger) Console.WriteLine("Found prey to hunt");
-            Pack.StartHunt(target);
+            range = VisionRangeInM;
+        }
+        else
+        {
+            //only scaling with square root, so the possible area scales linear with tick length
+            range = MaxHuntDistanceInM * Math.Sqrt(TickLengthInSec);
+        }
+        //May need synchronization to ensure, that every pack member hunts the same animal
+        //Priorities young and then weak (low satiety) prey animals
+        var target = LandscapeLayer.Environment.Explore(Position, range, -1, IsAnimalPrey)
+            .OrderBy(a => a.LifePeriod)
+            .ThenBy(a => a.Satiety)
+            .FirstOrDefault();
+        if (target is not null && HuntingTarget is null)
+        {
+            lock (target.AnimalChangingLock)
+            {
+                if (Logger) Console.WriteLine("Found prey to hunt");
+                foreach (var w in packList.Cast<Wolf>())
+                {
+                    w.HuntingTarget = target;
+                }
+            }
         }
     }
     
@@ -377,25 +435,32 @@ public class Wolf : AbstractAnimal
     /// </summary>
     private void EasyHuntAndSearch()
     {
-        AbstractAnimal target = null;
-        //recalculating the distance based on tick length, for realism should scale less than linear with TickLength
-        if (HuntingTarget is not null)
+        var packList = LandscapeLayer.Environment.Explore(Position, -1D, -1,
+            animal => animal is Wolf && animal.HerdId == HerdId
+        ).ToList();
+        
+        LookForPrey(packList);
+
+        if (HuntingTarget is null) return;
+        
+        //success rate could be improved in many ways
+        if (Random.Next(100) * packList.Count > 50)
         {
-            if (HuntingTarget.Position.DistanceInMTo(Position) <= ((MaxHuntDistanceInM / 3600) * TickLengthInSec))
-                target = HuntingTarget;
-        }
-        if (target is null)
-        {
-            LookForPrey();
             return;
         }
         
-        //success rate could be improved in many ways
-        if (Random.Next(100) > 50) return;
-        
-        Pack.ShareKill(target);
-        target.Die(MattersOfDeath.Culling);
-        if(Logger) Console.WriteLine("Found prey: " + target.ID + "  and eaten");
+        //multiple checks for null because of parallelism
+        if (HuntingTarget is null) return;
+        //lock to ensure a target can only be killed and eaten once
+        lock (HuntingTarget.AnimalChangingLock)
+        {
+            if (HuntingTarget is not null && HuntingTarget.IsAlive)
+            {
+                HuntingTarget.Die(MattersOfDeath.Culling);
+                if (Logger) Console.WriteLine("Found prey: " + HuntingTarget.ID + "  and eaten");
+                ShareKill(packList, HuntingTarget.SatietyFactor(), HuntingTarget.Position);
+            }
+        }
     }
 
     /// <summary>
@@ -403,36 +468,52 @@ public class Wolf : AbstractAnimal
     /// Behaviour depends on pack and prey and own object attributes.
     /// On Success, Prey is killed and shared with pack to update satiety
     /// </summary>
-    private void DetailedHunting() {
-        if (IsPartOfHunt)
+    private void DetailedHunting()
+    {
+        var packList = LandscapeLayer.Environment.Explore(Position, -1D, -1,
+            animal => animal is Wolf && animal.HerdId == HerdId
+        ).ToList();
+        
+        if (HuntingTarget is not null && HuntingTarget.IsAlive)
         {
-            CalculateTarget();
-            Position = Target;
-            Pack.EncirclingList.UpdateList();
-            //check for success only for one wolf per Tick, whole pack must be there, then static kill rate (needs to be improved)
-            if (this == Pack.GetLeader() && Pack.EncirclingList.Length() == Pack.Members.Count && Random.Next(100) > 15)
+            CalculateTarget(packList);
+            JumpTo(Target);
+            
+            //whole pack must be there, then static kill rate, depending on pack size (needs to be improved)
+            if (packList.OfType<Wolf>().All(wolf => wolf.IsOnCircle) && Random.Next(100) * packList.Count > 15)
             {
-                Pack.ShareKill(HuntingTarget);
-                HuntingTarget.Die(MattersOfDeath.Culling);
-                Pack.EndHunt();
+                lock (HuntingTarget.AnimalChangingLock)
+                {
+                    if (HuntingTarget.IsAlive)
+                    {
+                        ShareKill(packList, HuntingTarget.SatietyFactor(), HuntingTarget.Position);
+                        HuntingTarget.Die(MattersOfDeath.Culling);
+                        IsOnCircle = false;
+                        if (Logger) Console.WriteLine("Found prey: " + HuntingTarget.ID + "  and eaten");
+                        HuntingTarget = null;
+                    }
+                }
             }
-            //Todo: Huntingmaxduration and cooldown after hunting end
+            //could be improved by a MaxDuration and a possible cooldown after a failed hunt
         }
         else
         {
-            LookForPrey();
+            LookForPrey(packList);
         }
     }
     
 
-    private void CalculateTarget()
+    /// <summary>
+    /// Helping method to calculate the position needed for this individual during detailed pack hunts.
+    /// </summary>
+    /// <param name="packList"> A list of the whole participating pack</param>
+    private void CalculateTarget(List<AbstractAnimal> packList)
     {
         var preyPosition = HuntingTarget.Position;
         var distLeft = RunDistancePerTick;
-        //Console.WriteLine(ID + ": is distance away: " + Position.DistanceInMTo(preyPosition));
-        if (Position.DistanceInMTo(preyPosition) > SafeDistanceToPrey + 0.01 && !Pack.EncirclingList.Contains(this))
+        if (Position.DistanceInMTo(preyPosition) > SafeDistanceToPrey + 0.01 &&
+            !packList.All(animal => animal is Wolf wolf && wolf.IsOnCircle))
         {
-            //Console.WriteLine(ID + ": has to catch up");
             //catch up to safe distance
             var bearing = Position.GetBearing(preyPosition);
 
@@ -441,7 +522,6 @@ public class Wolf : AbstractAnimal
             if (distToCover < RunDistancePerTick)
             {
                 runDistance = distToCover - SafeDistanceToPrey;
-                //Console.WriteLine(ID + ": should now be on circle, runDistance= " + runDistance);
             }
             
             Target = Position.GetRelativePosition(bearing, runDistance);
@@ -451,55 +531,69 @@ public class Wolf : AbstractAnimal
             // if too close move away
             if (newDist > SafeDistanceToPrey + 0.01) return;
             Target = preyPosition.GetRelativePosition(InvertBearing(bearing), SafeDistanceToPrey);
-            SetBearingToPrey(bearing);
-            Pack.EncirclingList.Register(this);
+            BearingToPrey = bearing;
+            IsOnCircle = true;
         }
         else
         {
-            lock (CircleLock)
-            {
-                //find spot on circle
-                var left = Pack.EncirclingList.GetLeft(this);
-                var right = Pack.EncirclingList.GetRight(this);
+            //snapshot to sort based on one configuration, ignoring other movements in the same tick
+            var snapshot = packList
+                .Where(animal => animal is Wolf wolf && wolf.IsOnCircle)
+                .Select(wolf => new { Wolf = (Wolf)wolf, Bearing = ((Wolf)wolf).BearingToPrey }) 
+                .OrderBy(item => item.Bearing) 
+                .ToList();
 
-                if (left is not null)
-                {
-                    if (right is null)
-                    {
-                        var oppositeBearing = left.Position.GetBearing(preyPosition);
-                        Target = preyPosition.GetRelativePosition(oppositeBearing, SafeDistanceToPrey);
-                        SetBearingToPrey(InvertBearing(oppositeBearing));
-                        return;
-                    }
-
-                    //Console.WriteLine("2 neighbours found");
-
-                    //Find middle between both neighbours
-                    var fullDist = left.Position.DistanceInMTo(right.Position);
-                    var bear = left.Position.GetBearing(right.Position);
-                    var middle = left.Position.GetRelativePosition(bear, fullDist / 2);
-
-                    // check if swap is needed
-                    var bearDiffLeft = preyPosition.GetBearing(left.Position) -
-                                       Position.GetBearing(left.Position);
-                    var bearDiffRight = preyPosition.GetBearing(right.Position) -
-                                        Position.GetBearing(right.Position);
-
-                    //Calculate bearing
-                    var bearingFromPrey = middle.GetBearing(preyPosition);
-
-                    //invert if all three wolfs are on one half of the circle
-                    if (Math.Abs(bearDiffRight) + Math.Abs(bearDiffLeft) > 180)
-                        bearingFromPrey = InvertBearing(bearingFromPrey);
-
-                    Target = preyPosition.GetRelativePosition(bearingFromPrey, SafeDistanceToPrey);
-
-                    var distToTarget = Position.DistanceInMTo(Target);
-                    //if (distToTarget > distLeft) Target = Position.GetRelativePosition(Position.GetBearing(Target), distLeft);
-                    
-                    SetBearingToPrey(InvertBearing(bearingFromPrey));
-                }
+            if (snapshot.Count < 2) return;
+            
+            var currentItem = snapshot.FirstOrDefault(item => item.Wolf == this);
+            if (currentItem == null) {
+                Console.Error.WriteLine("this wolf not found");
+                return; //should never happen, but to be safe
             }
+
+            int index = snapshot.IndexOf(currentItem);
+
+            var previousWolf = snapshot[(index - 1 + snapshot.Count) % snapshot.Count].Wolf;
+            var nextWolf = snapshot[(index + 1) % snapshot.Count].Wolf;
+            
+            var rightPosition = previousWolf.Position;
+            var leftPosition = nextWolf.Position;
+            
+            if (snapshot.Count == 2) rightPosition = null;
+            
+            if (rightPosition is null)
+            {
+                var oppositeBearing = leftPosition.GetBearing(preyPosition);
+                Target = preyPosition.GetRelativePosition(oppositeBearing, SafeDistanceToPrey);
+                BearingToPrey = InvertBearing(oppositeBearing);
+                return;
+            }
+            
+            double bearingFromPrey;
+            
+            //cases when all 4 agents are on nearly the same line can lead to inaccuracies and mistakes in bearing calculations
+            var normalizedBearing = (BearingToPrey + 180) % 180;
+            var prevNormalized = (previousWolf.BearingToPrey + 180) % 180;
+            var nextNormalized = (nextWolf.BearingToPrey + 180) % 180;
+
+            if (Math.Abs(normalizedBearing - prevNormalized) < 2 &&
+                Math.Abs(normalizedBearing - nextNormalized) < 2)
+            {
+                bearingFromPrey = (BearingToPrey + 80) % 360;
+            }
+            else
+            {
+                //To find the bearing from prey in middle between neighbours:
+                //Calculate bearing between those neighbours and middle point to prey is exactly 90 degrees from that
+                bearingFromPrey = (360 + leftPosition.GetBearing(rightPosition) + 90) % 360;
+            }
+
+            Target = preyPosition.GetRelativePosition(bearingFromPrey, SafeDistanceToPrey);
+
+            var distToTarget = Position.DistanceInMTo(Target);
+            //if (distToTarget > distLeft) Target = Position.GetRelativePosition(Position.GetBearing(Target), distLeft);
+
+            BearingToPrey = InvertBearing(bearingFromPrey);
         }
     }
 
@@ -521,35 +615,40 @@ public class Wolf : AbstractAnimal
             far = false;
             newDist += Random.Next(-100, 50) / 2.0;
         }
+        else if (dist > RandomWalkMaxDistanceInM * 3)
+        {
+            newDist = RandomWalkMaxDistanceInM * 2;
+        }
         else
         {
-            newDist = RandomWalkMaxDistanceInM;
+            newDist = RandomWalkMaxDistanceInM * 0.85;
         }
 
         //try until a valid EndPosition is found
         while (numOfAttempts > 0)
         {
-            var dirOffset = (double) Random.Next(0, (int)30) - 15; //angle should depend on TickLength to keep distance smaller on slower tickrates
+            var dirOffset = (double) Random.Next(0, 30) - 15; //angle should depend on TickLength to keep distance smaller on slower tick rates
             if (far) dirOffset = dirOffset / 7;
             var newDir = bearing + dirOffset;
             
             Target = Position.GetRelativePosition(newDir, newDist);
             
-            if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
-                Position = Target;
+            if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target))
+            {
+                JumpTo(Target);
                 break;
             }
             numOfAttempts--;
         }
         //if all failed (cant be true if break was hit) go to exact same spot
-        if (numOfAttempts == 0) Position = targetPosition;
+        if (numOfAttempts == 0) JumpTo(targetPosition);
         
         Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
     }
 
     /// <summary>
     /// Moves towards a random position that is "forward". The angle will be randomly generated to change between -90 and +90 degrees.
-    /// If no try is successfull, the wolf wilkl "turn around" and the same will be done in the opposite direction.
+    /// If no try is successful, the wolf will "turn around" and the same will be done in the opposite direction.
     /// If no try is successful again, the wolf will go back the way he came and the movement will end excactly on the last position
     /// </summary>
     /// <param name="numOfAttempts"> number of random attempts to get a valid target position </param>
@@ -563,8 +662,8 @@ public class Wolf : AbstractAnimal
         while (numOfAttempts > 0)
         {
             var randomDistance = Random.Next(RandomWalkMinDistanceInM, RandomWalkMaxDistanceInM);
-            var randomDirOffset = (double) (Random.Next(0, 100) - 50) / 2.5;
-            if (!retry) randomDirOffset = randomDirOffset * 18.0;
+            var randomDirOffset = (Random.Next(0, 100) - 50) / 2.5;
+            if (!retry) randomDirOffset *= 18.0;
             
             var newDir = bearing + randomDirOffset;
             
@@ -572,7 +671,7 @@ public class Wolf : AbstractAnimal
             
             if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
                 LastPosition = Position;
-                Position = Target;
+                JumpTo(Target);
                 break;
             }
             numOfAttempts--;
@@ -586,33 +685,55 @@ public class Wolf : AbstractAnimal
         }
         
         //if all failed again (cant be true if break was hit) go back to the exact same spot
-        if (numOfAttempts == 0) Position = LastPosition;
-        Console.WriteLine("Tries left: " + numOfAttempts);
+        if (numOfAttempts == 0) JumpTo(LastPosition);
         
         Assert.IsTrue(Perimeter.IsPointInside(Position) && !RasterWaterLayer.IsPointInside(Position));
     }
     
     /// <summary>
-    /// Only males should do this. Looks for a partner in an area depending on config and TickLength
-    /// If found Packs are updated. Still could need Thread safety
+    /// Only males should do this. (not for ecological reasons) Looks for a partner in an area depending on config and TickLength
+    /// Still could need Thread safety
     /// </summary>
     private void LookForPartner()
     {
         if(Logger) Console.WriteLine("Looking for a partner");
-        //recalculating the distance based on tick length, for realism should scale less than linear with TickLength
-        var target = LandscapeLayer.Environment.GetNearest(Position, (MaxHuntDistanceInM / 3600) * TickLengthInSec, IsPossibleFemalePartner);
-        if (target is null or Wolf) return;
+        //recalculating the distance based on tick length, only scaling with square root, so the possible area scales linear with tick length
+        var target = LandscapeLayer.Environment.Explore(Position, MaxHuntDistanceInM * Math.Sqrt(TickLengthInSec) * 4, 1, 
+            animal => animal is Wolf { AnimalType: AnimalType.WolfMale , IsLookingForPartner: true}).FirstOrDefault();
+        if (target is null) return;
         
-        // Cast is safe because of check in previous line
+        // Cast is safe because of predicate in Explore
         // ReSharper disable once PossibleInvalidCastException
-        Pack.Mother = (Wolf) target;
-        target.HerdId = HerdId;
-        target.IsLeading = true;
+        //Pack.Mother = (Wolf) target;
+        var partner = (Wolf)target;
+        partner.IsLookingForPartner = false;
+        partner.HerdId = HerdId;
+        partner.IsLeading = true;
         
         if(Logger) Console.WriteLine("Found partner: " + target.ID + "  and started family");
     }
 
-    //checks if animal is possible prey
+    /// <summary>
+    /// Shares the nutrition of killed prey equally with all other wolves
+    /// </summary>
+    /// <param name="pack">a list of the whole pack (including this), must be a List with only wolves</param>
+    /// <param name="nutritionValue">the Value of nutrition that should be shared</param>
+    /// <param name="position">the position where the food is</param>
+    private void ShareKill(List<AbstractAnimal> pack, double nutritionValue, Position position)
+    {
+        foreach (var w in pack.Cast<Wolf>())
+        {
+            w.GiveFood(nutritionValue/pack.Count);
+            w.IsOnCircle = false;
+            w.HuntingTarget = null;
+            w.JumpTo(position);
+        }
+    }
+
+    /// <summary>
+    /// checks if animal is possible prey
+    /// </summary>
+    /// <param name="animal"></param>
     private static bool IsAnimalPrey(AbstractAnimal animal)
     {
         return animal.AnimalType switch
@@ -635,21 +756,11 @@ public class Wolf : AbstractAnimal
         };
     }
 
-    private static bool IsPossibleFemalePartner(AbstractAnimal animal)
-    {
-        if (animal.AnimalType != AnimalType.WolfFemale) return false;
-        //casting is safe because of previous check for animalType
-        var wolf = (Wolf) animal;
-        return wolf.IsLookingForPartner();
-    }
-    
-    public int CompareTo(object obj)
-    {
-        if (obj is not Wolf wolf) return -1;
-        if (this.Equals(wolf)) return 0;
-        return BearingToPrey.CompareTo(wolf.BearingToPrey);
-    }
-
+    /// <summary>
+    /// Helping Method to keep bearings positive and avoid math errors
+    /// </summary>
+    /// <param name="bearing"></param>
+    /// <returns> opposite bearing, but as a positive number</returns>
     private double InvertBearing(double bearing)
     {
         if (bearing is > 360 or < 0) Console.WriteLine("Somethings not right with the bearing");
@@ -660,32 +771,33 @@ public class Wolf : AbstractAnimal
     
     public void SetBearingToPrey(double bearing)
     {
-        lock (WolfLock)
+        lock (AnimalChangingLock)
         {
             BearingToPrey = bearing;
         }
     }
-    
-    private void InitPack()
-    {
-        _packManager ??= new PackManager();
-        var pack = _packManager.FindById(HerdId);
-        if (pack is null)
-        {
-            // ReSharper disable once UseObjectOrCollectionInitializer
-            var members = new List<Wolf>();
-            members.Add(this);
-            pack = _packManager.CreateWolfPack(HerdId, null, null, members);
-        }
-        else
-        {
-            pack.Members.Add(this);
-        }
 
-        if (IsLeading)
-        {
-            if (AnimalType == AnimalType.WolfMale) pack.Father = this;
-            if(AnimalType == AnimalType.WolfFemale) pack.Mother = this;
-        }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>the next unused id in a thread safe way</returns>
+    private int GetNextID()
+    {
+        return Interlocked.Increment(ref NextID) - 1;
     }
+
+    /// <summary>
+    /// Ensures that NextID is initialized in a thread safe way to avoid collisions
+    /// </summary>
+    private void InitNextID()
+    {
+        int current, newValue;
+        do
+        {
+            current = NextID;
+            newValue = Math.Max(current, HerdId + 1);
+        } while (Interlocked.CompareExchange(ref NextID, newValue, current) != current);
+    }
+
 }

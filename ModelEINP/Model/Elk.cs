@@ -43,7 +43,7 @@ public class Elk : AbstractAnimal {
     #region Properties and Fields
     
     protected override double Hydration { get; set; } = MaxHydration;
-    protected override double Satiety { get; set; } = MaxSatiety;
+    public override double Satiety { get; set; } = MaxSatiety;
     public override Position Position { get; set; }
     public override Position Target { get; set; }
     [PropertyDescription(Name = "Latitude")]
@@ -143,16 +143,11 @@ public class Elk : AbstractAnimal {
             YearlyRoutine();
         }
         if (!IsAlive) return;
-
-        if (TickLengthInSec < 300 && IsPartOfHunt)
-        {
-            //do evading movements from wolfs
-        }
        
-        if (Satiety < 40) {
+        if (Satiety < 90) {
             LookForFoodAndEat();
         }
-        else if (Hydration < 40) {
+        else if (Hydration < 95) {
             LookForWaterAndDrink();
         }
         else {

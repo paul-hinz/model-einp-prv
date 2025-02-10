@@ -51,7 +51,7 @@ public class LandscapeLayer : AbstractLayer {
         Console.WriteLine(new BoundingBox(baseExtent));
 
         // Create GeoHashEnvironment with the calculated extent
-        Environment = GeoHashEnvironment<AbstractAnimal>.BuildByBBox(new BoundingBox(baseExtent), 1000);
+        Environment = GeoHashEnvironment<AbstractAnimal>.BuildByBBox(new BoundingBox(baseExtent), 1);
 
         var agentManager = layerInitData.Container.Resolve<IAgentManager>();
         Bisons = agentManager.Spawn<Bison, LandscapeLayer>().ToList();

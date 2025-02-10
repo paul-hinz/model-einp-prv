@@ -1,8 +1,8 @@
 {
   "globals": {
-    "deltaT": 3,
+    "deltaT": 5,
     "startPoint": "2018-11-18T08:00:00",
-    "endPoint": "2018-11-18T16:00:00",
+    "endPoint": "2018-11-19T08:00:00",
     "deltaTUnit": "minutes",
     "console": false,
     "output": "csv",
@@ -206,7 +206,7 @@
       ],
       "file":"Resources/elks.csv",
       "outputs": [
-        
+        {"kind": "trips"}
       ]
     },
     {
@@ -230,7 +230,7 @@
         },
         {
           "parameter": "RandomWalkMaxDistanceInM",
-          "value": 700
+          "value": 300
         },
         {
           "parameter": "RandomWalkMinDistanceInM",
@@ -241,8 +241,12 @@
           "value": 99
         },
         {
+          "parameter": "VisionRangeInM",
+          "value": 100
+        },
+        {
           "parameter": "MaxHuntDistanceInM",
-          "value": 900
+          "value": 6
         },
         {
           "parameter": "PregnancyDurationInDays",
@@ -274,7 +278,11 @@
         "delimiter": ";"
       },
       "outputs": [
-        {"kind": "trips"}
+        {"kind": "trips",
+          "outputConfiguration": {
+            "tripsFields": ["isLeading"]
+          }
+        }
       ]
     }
   ]
