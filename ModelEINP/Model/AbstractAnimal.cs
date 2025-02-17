@@ -52,8 +52,6 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     public Guid ID { get; set; }
     public abstract Position Position { get; set; }
     public abstract Position Target { get; set; }
-    public double Bearing = 222.0;
-    public const double Distance = 5000.0;
     public LandscapeLayer LandscapeLayer { get; set; }
     public abstract double Latitude { get; set; }
     public abstract double Longitude { get; set; }

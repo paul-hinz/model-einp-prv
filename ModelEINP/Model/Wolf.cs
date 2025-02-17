@@ -140,9 +140,32 @@ public class Wolf : AbstractAnimal
     [PropertyDescription] 
     public static double RunningSpeedInMs { get; set; }
 
-    //Chance for an adult female animal to become pregnant per year in percent
-    //rate needs to be adjusted with data
+    ///Chance for an adult female animal to become pregnant per year in percent. 
+    ///Rate needs to be adjusted with data
     private const int ChanceForPregnancy = 75;
+    
+    ///Table for hunting success rates in percent. Each row represents 1 more wolf but starting with 0. First column for elks, second for bigger prey. 
+    ///e.g. 5 wolves hunting a moose should invoke [4][1] and thus return 5 percent. 
+    ///Could be parametrized with config
+    private readonly int[,] HuntingRates = new int[16, 2]
+    {
+        {0,0},
+        {14, 1},
+        {18, 2},
+        {25, 3},
+        {33, 4},
+        {28, 5},
+        {25, 7},
+        {21, 9},
+        {17, 12},
+        {15, 16},
+        {13, 21},
+        {11, 28},
+        {10, 24},
+        {8, 21},
+        {7, 17},
+        {6, 15}
+    };
     private bool isDetailed;
     
     #endregion
@@ -443,8 +466,26 @@ public class Wolf : AbstractAnimal
 
         if (HuntingTarget is null) return;
         
+        Wolf leader = null;
+        
+        foreach (var w in packList.Cast<Wolf>().Where(w => w.IsLeading))
+        {
+            if (w.AnimalType.Equals(AnimalType.WolfFemale) && leader is null)
+            {
+                leader = w;
+            }
+            if(w.AnimalType.Equals(AnimalType.WolfMale))
+            {
+                leader = w;
+            }
+        }
+        
+        leader ??= this;
+        
         //success rate could be improved in many ways
-        if (Random.Next(100) * packList.Count > 50)
+        var packSize = packList.Count - 1;
+        if (packSize > 15) packSize = 15;
+        if (this == leader && Random.Next(100) >= HuntingRates[packSize, IsBigPrey(HuntingTarget)])
         {
             return;
         }
@@ -480,17 +521,38 @@ public class Wolf : AbstractAnimal
             JumpTo(Target);
             
             //whole pack must be there, then static kill rate, depending on pack size (needs to be improved)
-            if (packList.OfType<Wolf>().All(wolf => wolf.IsOnCircle) && Random.Next(100) * packList.Count > 15)
+            if (packList.OfType<Wolf>().All(wolf => wolf.IsOnCircle))
             {
-                lock (HuntingTarget.AnimalChangingLock)
+                
+                Wolf leader = null;
+                foreach (var w in packList.Cast<Wolf>().Where(w => w.IsLeading))
                 {
-                    if (HuntingTarget.IsAlive)
+                    if (w.AnimalType.Equals(AnimalType.WolfFemale) && leader is null)
                     {
-                        ShareKill(packList, HuntingTarget.SatietyFactor(), HuntingTarget.Position);
-                        HuntingTarget.Die(MattersOfDeath.Culling);
-                        IsOnCircle = false;
-                        if (Logger) Console.WriteLine("Found prey: " + HuntingTarget.ID + "  and eaten");
-                        HuntingTarget = null;
+                        leader = w;
+                    }
+                    if(w.AnimalType.Equals(AnimalType.WolfMale))
+                    {
+                        leader = w;
+                    }
+                }
+                leader ??= this;
+            
+                //success rate could be improved in many ways
+                var packSize = packList.Count - 1;
+                if (packSize > 15) packSize = 15;
+                if (this == leader && Random.Next(100) < HuntingRates[packSize, IsBigPrey(HuntingTarget)])
+                {
+                    lock (HuntingTarget.AnimalChangingLock)
+                    {
+                        if (HuntingTarget.IsAlive)
+                        {
+                            ShareKill(packList, HuntingTarget.SatietyFactor(), HuntingTarget.Position);
+                            HuntingTarget.Die(MattersOfDeath.Culling);
+                            IsOnCircle = false;
+                            if (Logger) Console.WriteLine("Found prey: " + HuntingTarget.ID + "  and eaten");
+                            HuntingTarget = null;
+                        }
                     }
                 }
             }
@@ -733,7 +795,7 @@ public class Wolf : AbstractAnimal
     /// <summary>
     /// checks if animal is possible prey
     /// </summary>
-    /// <param name="animal"></param>
+    /// <param name="animal">the prey</param>
     private static bool IsAnimalPrey(AbstractAnimal animal)
     {
         return animal.AnimalType switch
@@ -753,6 +815,29 @@ public class Wolf : AbstractAnimal
                 => true,
             
             _ => false
+        };
+    }
+    
+    /// <summary>
+    /// checks if animal is a big prey, mooses and bisons are big, elks are small
+    /// </summary>
+    /// <param name="animal"> the prey</param>
+    /// <returns> 1 if big, 0 otherwise (so should be small)  </returns>
+    private static int IsBigPrey(AbstractAnimal animal)
+    {
+        return animal.AnimalType switch
+        {
+            AnimalType.BisonCow 
+                or AnimalType.BisonBull 
+                or AnimalType.BisonCalf 
+                or AnimalType.BisonNewborn
+                or AnimalType.MooseCow 
+                or AnimalType.MooseBull 
+                or AnimalType.MooseCalf
+                or AnimalType.MooseNewborn 
+                => 1,
+            
+            _ => 0
         };
     }
 
