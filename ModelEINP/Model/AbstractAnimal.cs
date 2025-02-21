@@ -70,7 +70,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     protected bool Pregnant;
     protected int PregnancyDurationInTicks;
     protected int ChanceOfDeath;
-    protected int Age { get; set; }
+    public int Age { get; set; }
     public AnimalLifePeriod LifePeriod;
     public MattersOfDeath MatterOfDeath { get; private set; }
     public bool IsAlive { get; set; } = true;
@@ -201,6 +201,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
 
     protected void BurnSatiety(double rate)
     {
+        if (TickLengthInSec > 18000) rate = rate / 3;
         //Max rate is 49, so an animal cant die in less then 3 ticks at longer tick lengths
         if (rate > 49) rate = 49;
         if (Satiety > 0) {
@@ -262,7 +263,7 @@ public abstract class AbstractAnimal : IPositionable, IAgent<LandscapeLayer> {
     protected void JumpTo(Position position)
     {
         LandscapeLayer.Environment.MoveToPosition(this, position.Latitude, position.Longitude);
-        Position = position;
+        Position = position.Copy();
     }
 
 }

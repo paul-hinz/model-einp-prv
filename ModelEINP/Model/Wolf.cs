@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Mars.Common;
+using Mars.Common.Core.Collections;
 using Mars.Interfaces.Annotations;
 using Mars.Interfaces.Environments;
 using NetTopologySuite.Utilities;
@@ -18,12 +19,7 @@ public class Wolf : AbstractAnimal
     {
     }
 
-    private void TestHerd()
-    {
-        Console.WriteLine(HerdId);
-    }
-
-    private const bool Logger = true;
+    private const bool Logger = false;
     
     [ActiveConstructor] 
     public Wolf(
@@ -52,7 +48,6 @@ public class Wolf : AbstractAnimal
             longitude,
             position)
     {
-        SetTestingValues();
         InitNextID();
     }
 
@@ -89,7 +84,6 @@ public class Wolf : AbstractAnimal
     private static int NextID = 1;
     private bool IsLookingForPartner { get; set; }
     
-    
     #endregion
 
     #region Constants
@@ -98,12 +92,12 @@ public class Wolf : AbstractAnimal
         /*
          * Initial value is per Hour
          * The Daily Food Need is taken into account at CalculateSatietyFactor(Animal)
-         * Assumption: A Wolf can survive with eating every 10 days
+         * Assumption: A Wolf can survive with eating every 20 days
          * --> Verliert jede Stunde ein 10*18 tel, weil durch die Nacht in Summe 18 Stunden pro Tag abgezogen werden
          */
-        { AnimalLifePeriod.Calf, MaxSatiety / (10 * 18) }, 
-        { AnimalLifePeriod.Adolescent, MaxSatiety / (10 * 18) }, 
-        { AnimalLifePeriod.Adult, MaxSatiety / (10 * 18) }  
+        { AnimalLifePeriod.Calf, MaxSatiety / (20 * 18) }, 
+        { AnimalLifePeriod.Adolescent, MaxSatiety / (20 * 18) }, 
+        { AnimalLifePeriod.Adult, MaxSatiety / (20 * 18) }  
     };
     
     //total need of food per day in kilograms
@@ -145,7 +139,7 @@ public class Wolf : AbstractAnimal
     private const int ChanceForPregnancy = 75;
     
     ///Table for hunting success rates in percent. Each row represents 1 more wolf but starting with 0. First column for elks, second for bigger prey. 
-    ///e.g. 5 wolves hunting a moose should invoke [4][1] and thus return 5 percent. 
+    ///e.g. 5 wolves hunting a moose should invoke [5][1] and thus return 5 percent. 
     ///Could be parametrized with config
     private readonly int[,] HuntingRates = new int[16, 2]
     {
@@ -189,13 +183,14 @@ public class Wolf : AbstractAnimal
             }
             else {
                 PregnancyDurationInTicks = 0;
+                Pregnant = false;
                 var litterSize = Random.Next(MinLitterSize, MaxLitterSize);
                 for (var i = 0; i < litterSize; i++)
                 {
-                    LandscapeLayer.SpawnWolf(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
+                    var pup = LandscapeLayer.SpawnWolf(LandscapeLayer, Perimeter, VegetationLayer, VectorWaterLayer, RasterWaterLayer,
                         AnimalType.WolfPup, false, HerdId, Latitude, Longitude, Position);
                 }
-                if(Logger) Console.WriteLine("Wolf: " + ID + "gave birth");
+                if(Logger) Console.WriteLine("Wolf: " + ID + " gave birth");
             }
         }
         
@@ -220,7 +215,7 @@ public class Wolf : AbstractAnimal
         }
         else
         {
-            LastPosition = Position;
+            LastPosition = Position.Copy();
             DoRandomWalk(10);
         }
 
@@ -233,7 +228,7 @@ public class Wolf : AbstractAnimal
     
     public override void FirstTick()
     {
-        LastPosition = Position;
+        LastPosition = Position.Copy();
         CalculateParams();
         InitNextID();
     }
@@ -254,7 +249,24 @@ public class Wolf : AbstractAnimal
 
         isDetailed = TickLengthInSec < 60;
 
+        //hunt always if TickLength > 1 day
         if (TickLengthInSec > 24 * 60 * 60) HungryThreshold = 101;
+        
+        //pups dont need correction on initialization or are later spawned
+        if(AnimalType is AnimalType.WolfPup) return;
+        
+        //initialize leader as adults, others as yearlings
+        if (IsLeading)
+        {
+            LifePeriod = AnimalLifePeriod.Adult;
+            Age = 3;
+        }
+        else
+        {
+            LifePeriod = AnimalLifePeriod.Adolescent;
+            Age = 1;
+            AnimalType = AnimalType.WolfYearling;
+        }
     }
 
     /// <summary>
@@ -303,7 +315,6 @@ public class Wolf : AbstractAnimal
                 //Pups have a high chance of dying in the first year
                 if (Random.Next(100) > PupSurvivalRate)
                 {
-                    //Pack.LeavePack(this);
                     Die(MattersOfDeath.Natural);
                     if(Logger) Console.WriteLine("A Pup died");
                 }
@@ -311,9 +322,15 @@ public class Wolf : AbstractAnimal
             
             if (newLifePeriod == AnimalLifePeriod.Adult)
             {
+                //Yearlings have a high chance of dying as well
+                if (Random.Next(100) > PupSurvivalRate * 3)
+                {
+                    Die(MattersOfDeath.Natural);
+                    if(Logger) Console.WriteLine("A Pup died");
+                }
                 //decide sex, 50:50 chance of being male or female
                 AnimalType = Random.Next(2) == 0 ? AnimalType.WolfMale : AnimalType.WolfFemale;
-                if(Logger) Console.WriteLine("Wolf: " + ID + "grew up and is: " + AnimalType + " and isLeading: " + IsLeading);
+                if(Logger) Console.WriteLine("Wolf: " + ID + " grew up and is: " + AnimalType + " and isLeading: " + IsLeading);
 
             }
             LifePeriod = newLifePeriod;
@@ -328,7 +345,6 @@ public class Wolf : AbstractAnimal
                 if (Logger) Console.WriteLine("Leaving a pack and starting a new one with ID: " + HerdId);
                 IsLeading = true;
                 IsLookingForPartner = true;
-                // _packManager.StartNewPack(this);
             }
             
         }
@@ -337,22 +353,24 @@ public class Wolf : AbstractAnimal
         if (!(Age >= ReproductionYears[0] && Age <= ReproductionYears[1])) return;
         
         //only mother wolf can get pregnant when a father is present 
-        if (!AnimalType.Equals(AnimalType.WolfFemale) || !IsLeading) return;
-        if(Logger) Console.WriteLine("Wolf: " + AnimalType + " HerdId: " + HerdId + " is leading: "+ IsLeading);
-
-        //find a partner (must be male, same pack and leading)
-        var partner = LandscapeLayer.Environment.Explore(Position, VisionRangeInM * 10, 1, 
-            animal => animal is Wolf wolf && wolf.HerdId == this.HerdId && wolf.IsLeading && wolf.AnimalType.Equals(AnimalType.WolfMale)
-            ).FirstOrDefault();
-        
-        if (partner is not null
-            && LifePeriod == AnimalLifePeriod.Adult
-            && Random.Next(100) < ChanceForPregnancy-1) 
+        if (AnimalType.Equals(AnimalType.WolfFemale) && IsLeading)
         {
-                if(Logger) Console.WriteLine("Wolf: " + ID + "got pregnant");
+
+            //find a partner (must be male, same pack and leading)
+            var partner = LandscapeLayer.Environment.Explore(Position, -1D, 1,
+                animal => animal is Wolf wolf && wolf.HerdId == this.HerdId && wolf.IsLeading &&
+                          wolf.AnimalType.Equals(AnimalType.WolfMale)
+            ).FirstOrDefault();
+
+            if (partner is not null
+                && LifePeriod == AnimalLifePeriod.Adult
+                && Random.Next(100) < ChanceForPregnancy)
+            {
+                if (Logger) Console.WriteLine("Wolf: " + ID + " got pregnant");
                 Pregnant = true;
+            }
         }
-        
+
     }
 
     public override AnimalLifePeriod GetAnimalLifePeriodFromAge(int age)
@@ -451,17 +469,32 @@ public class Wolf : AbstractAnimal
             }
         }
     }
-    
+
     /// <summary>
     /// Hunting with a set success rate for longer TickLength. Looking for prey in an area depending on config and TickLength.
     /// On Success, Prey is killed and shared with pack to update satiety
     /// </summary>
+    /// <param name="packList1"></param>
     private void EasyHuntAndSearch()
     {
-        var packList = LandscapeLayer.Environment.Explore(Position, -1D, -1,
-            animal => animal is Wolf && animal.HerdId == HerdId
-        ).ToList();
-        
+        List<AbstractAnimal> packList;
+        try
+        {
+            packList = LandscapeLayer.Environment.Explore(Position, -1D, -1,
+                animal => animal is Wolf && animal.HerdId == HerdId
+            ).WhereNotNull().ToList();
+        }
+        catch(NullReferenceException)
+        {
+            Console.Error.WriteLine("HuntAndSearch failed because of NullReference during packList Explore");
+            return;
+        }
+        catch(IndexOutOfRangeException)
+        {
+            Console.Error.WriteLine("HuntAndSearch failed because of IndexOutOfRange during packList Explore");
+            return;
+        }
+
         LookForPrey(packList);
 
         if (HuntingTarget is null) return;
@@ -481,22 +514,39 @@ public class Wolf : AbstractAnimal
         }
         
         leader ??= this;
+        if (this != leader) return;
+        
         
         //success rate could be improved in many ways
         var packSize = packList.Count - 1;
         if (packSize > 15) packSize = 15;
-        if (this == leader && Random.Next(100) >= HuntingRates[packSize, IsBigPrey(HuntingTarget)])
+        if (HuntingTarget is null) return;
+        var factor = 1;
+        if (TickLengthInSec > 18000) factor = 3;
+        
+        if (Random.Next(100) >= HuntingRates[packSize, IsBigPrey(HuntingTarget)] * factor)
         {
             return;
         }
         
-        //multiple checks for null because of parallelism
-        if (HuntingTarget is null) return;
-        //lock to ensure a target can only be killed and eaten once
-        lock (HuntingTarget.AnimalChangingLock)
+        lock (AnimalChangingLock)
         {
-            if (HuntingTarget is not null && HuntingTarget.IsAlive)
+            //multiple checks for null because of parallelism
+            if (HuntingTarget is null) return;
+
+            //lock to ensure a target can only be killed and eaten once
+            lock (HuntingTarget.AnimalChangingLock)
             {
+                if (!HuntingTarget.IsAlive)
+                {
+                    HuntingTarget = null;
+                }
+
+                if (HuntingTarget is null)
+                {
+                    return;
+                }
+
                 HuntingTarget.Die(MattersOfDeath.Culling);
                 if (Logger) Console.WriteLine("Found prey: " + HuntingTarget.ID + "  and eaten");
                 ShareKill(packList, HuntingTarget.SatietyFactor(), HuntingTarget.Position);
@@ -513,7 +563,7 @@ public class Wolf : AbstractAnimal
     {
         var packList = LandscapeLayer.Environment.Explore(Position, -1D, -1,
             animal => animal is Wolf && animal.HerdId == HerdId
-        ).ToList();
+        ).WhereNotNull().ToList();
         
         if (HuntingTarget is not null && HuntingTarget.IsAlive)
         {
@@ -600,6 +650,7 @@ public class Wolf : AbstractAnimal
         {
             //snapshot to sort based on one configuration, ignoring other movements in the same tick
             var snapshot = packList
+                .WhereNotNull()
                 .Where(animal => animal is Wolf wolf && wolf.IsOnCircle)
                 .Select(wolf => new { Wolf = (Wolf)wolf, Bearing = ((Wolf)wolf).BearingToPrey }) 
                 .OrderBy(item => item.Bearing) 
@@ -675,7 +726,7 @@ public class Wolf : AbstractAnimal
         if (dist < RandomWalkMaxDistanceInM)
         {
             far = false;
-            newDist += Random.Next(-100, 50) / 2.0;
+            newDist += Random.Next(-100, 50) / 8.0;
         }
         else if (dist > RandomWalkMaxDistanceInM * 3)
         {
@@ -717,14 +768,16 @@ public class Wolf : AbstractAnimal
     private void DoRandomRoam(int numOfAttempts)
     {
         var bearing = LastPosition.GetBearing(Position);
+        //there seems to be a bug so that lastposition isnt properly updated. Then the bearing would be allways 0, north, which would slowly move all wolves to the northern edege.
+        if (bearing == 0) bearing = Random.Next(360); //if that bug is fixed, this shouldnt be necessary
+        
         var retry = true;
         var temp = numOfAttempts;
-        
         //try until a valid EndPosition is found
         while (numOfAttempts > 0)
         {
             var randomDistance = Random.Next(RandomWalkMinDistanceInM, RandomWalkMaxDistanceInM);
-            var randomDirOffset = (Random.Next(0, 100) - 50) / 2.5;
+            var randomDirOffset = (Random.Next(0, 100) - 50) / 3.0;
             if (!retry) randomDirOffset *= 18.0;
             
             var newDir = bearing + randomDirOffset;
@@ -732,7 +785,7 @@ public class Wolf : AbstractAnimal
             Target = Position.GetRelativePosition(newDir, randomDistance);
             
             if (Perimeter.IsPointInside(Target) && !RasterWaterLayer.IsPointInside(Target)) {
-                LastPosition = Position;
+                LastPosition = Position.Copy();
                 JumpTo(Target);
                 break;
             }
@@ -760,13 +813,12 @@ public class Wolf : AbstractAnimal
     {
         if(Logger) Console.WriteLine("Looking for a partner");
         //recalculating the distance based on tick length, only scaling with square root, so the possible area scales linear with tick length
-        var target = LandscapeLayer.Environment.Explore(Position, MaxHuntDistanceInM * Math.Sqrt(TickLengthInSec) * 4, 1, 
-            animal => animal is Wolf { AnimalType: AnimalType.WolfMale , IsLookingForPartner: true}).FirstOrDefault();
+        var target = LandscapeLayer.Environment.Explore(Position, MaxHuntDistanceInM * Math.Sqrt(TickLengthInSec) * 10, 1, 
+            animal => animal is Wolf { AnimalType: AnimalType.WolfFemale , IsLookingForPartner: true}).FirstOrDefault();
         if (target is null) return;
         
         // Cast is safe because of predicate in Explore
         // ReSharper disable once PossibleInvalidCastException
-        //Pack.Mother = (Wolf) target;
         var partner = (Wolf)target;
         partner.IsLookingForPartner = false;
         partner.HerdId = HerdId;
@@ -793,11 +845,12 @@ public class Wolf : AbstractAnimal
     }
 
     /// <summary>
-    /// checks if animal is possible prey
+    /// checks if animal is possible and living prey
     /// </summary>
     /// <param name="animal">the prey</param>
     private static bool IsAnimalPrey(AbstractAnimal animal)
     {
+        if (!animal.IsAlive) return false;
         return animal.AnimalType switch
         {
             AnimalType.BisonCow 

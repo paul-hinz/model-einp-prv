@@ -10,7 +10,11 @@ namespace ModelEINP;
 
 
 internal static class Program {
-    public static void Main(string[] args) {
+    public static void Main(string[] args)
+    {
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        
         // This scenario consists of:
         // 1. a model (represented by the model description)
         // 2. a simulation configuration (see config.json)
@@ -38,7 +42,8 @@ internal static class Program {
         Debug.Assert(config.Globals.DeltaTTimeSpan != null, "config.Globals.DeltaTTimeSpan != null");
         var timeSpan = config.Globals.DeltaTTimeSpan.Value.TotalSeconds;
         GlobalValueHelper.TickSeconds = timeSpan;
-        Console.WriteLine("Seconds Per Tick: " + timeSpan);
+        Console.Write("Simulation started at " + DateTime.Now);
+        Console.WriteLine("| Seconds Per Tick: " + timeSpan);
 
         // Create simulation task
         var simStarter = SimulationStarter.Start(description, config);
@@ -48,6 +53,8 @@ internal static class Program {
 
         // Feedback to user that simulation run was successful
         Console.WriteLine($"Simulation execution finished after {results.Iterations} steps");
-       
+        
+        watch.Stop();
+        Console.WriteLine($"Simulation took {watch.ElapsedMilliseconds / 1000} seconds");
     }
 }
